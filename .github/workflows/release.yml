@@ -73,6 +73,10 @@ jobs:
         run: python .github/scripts/surrogate_release_smoke.py
       - name: Scientific all-family stress matrix
         run: python .github/scripts/scientific_stress_gate.py
+      - name: Quantum reasoning release contract
+        run: |
+          pytest tests/test_reasoning_quantum.py -q
+          axiomize-reason score --evidence 0.9 --verification 0.85
       - name: Real LaTeX console conversion
         shell: bash
         run: |
@@ -185,7 +189,7 @@ jobs:
         shell: bash
         run: |
           echo "::error::PyPI authentication is not configured for this release."
-          echo "::error::Configure a PyPI Trusted Publisher with owner=Furox-Art, repository=axiomize, workflow=release.yml, environment=pypi; or define the PYPI_API_TOKEN secret in the pypi environment."
+          echo "::error::Configure a PyPI Trusted Publisher with owner=Furox-Art, repository=axiomize-quantum-skills-2.0, workflow=release.yml, environment=pypi; or define the PYPI_API_TOKEN secret in the pypi environment."
           exit 1
       - name: Verify PyPI publication
         shell: bash

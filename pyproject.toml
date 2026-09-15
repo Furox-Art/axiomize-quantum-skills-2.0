@@ -3,9 +3,9 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "axiomize"
+name = "axiomize-quantum-skills"
 version = "2.0.0"
-description = "Rigorous scientific modeling engine and agent skill pack with native multi-family simulation, validation, causal/Bayesian inference and reproducible export"
+description = "Axiomize 2.0: scientific modeling engine plus quantum-inspired multi-branch reasoning and Model IR selection"
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
@@ -16,6 +16,7 @@ authors = [
 keywords = [
     "modeling", "simulation", "first-principles", "calibration", "causal-inference",
     "bayesian", "finite-elements", "scientific-computing", "agent-skills",
+    "reasoning", "multi-branch-reasoning", "model-selection",
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -49,13 +50,14 @@ playground = ["gradio>=4.0", "pandas>=1.5"]
 dev = ["pytest>=8.0", "ruff>=0.4", "mypy>=1.10"]
 
 [project.urls]
-Homepage = "https://github.com/Furox-Art/axiomize"
-Repository = "https://github.com/Furox-Art/axiomize"
-Issues = "https://github.com/Furox-Art/axiomize/issues"
-Documentation = "https://furox-art.github.io/axiomize/"
+Homepage = "https://github.com/Furox-Art/axiomize-quantum-skills-2.0"
+Repository = "https://github.com/Furox-Art/axiomize-quantum-skills-2.0"
+Issues = "https://github.com/Furox-Art/axiomize-quantum-skills-2.0/issues"
+Documentation = "https://furox-art.github.io/axiomize-quantum-skills-2.0/"
 
 [project.scripts]
 axiomize = "axiomize.cli:main"
+axiomize-reason = "axiomize.reasoning.cli:main"
 axiomize-validate = "axiomize.tools.validate:main"
 axiomize-fit = "axiomize.tools.fit:main"
 axiomize-csv-check = "axiomize.tools.csv_check:main"
@@ -76,6 +78,9 @@ packages = ["src/axiomize"]
 "skills/axiomize/first-principles.md" = "axiomize/first-principles.md"
 "skills/axiomize/perspectives" = "axiomize/perspectives"
 "skills/axiomize/templates" = "axiomize/templates"
+"skills/quantum-reasoning-SKILL.md" = "axiomize/quantum-reasoning-SKILL.md"
+"src/axiomize/reasoning/docs/MEASUREMENT.md" = "axiomize/reasoning-docs/MEASUREMENT.md"
+"src/axiomize/reasoning/docs/COMPATIBILITY.md" = "axiomize/reasoning-docs/COMPATIBILITY.md"
 "benchmarks/ideas.json" = "axiomize/data/benchmark_ideas.json"
 
 [tool.hatch.build.targets.sdist]
