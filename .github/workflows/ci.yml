@@ -77,6 +77,17 @@ jobs:
           for id in $ids; do
             python skills/axiomize/tools/benchmark_runner.py --case "$id" --report "benchmarks/reports/$id.md" || exit 1
           done
+      - name: Quantum reasoning contract (score/prune/revive/collapse)
+        run: pytest tests/test_reasoning_quantum.py -v
+      - name: Quantum reasoning benchmark smoke (evaluator + schemas)
+        run: |
+          python src/axiomize/reasoning/benchmark/evaluate.py --help
+          python -c "import json,glob; [json.load(open(p, encoding='utf-8')) for p in glob.glob('src/axiomize/reasoning/benchmark/schemas/*.json')]; print('schemas OK')"
+      - name: Model selection bridge smoke (reasoning adapter + CLI)
+        run: |
+          python -m pip install -e . --no-deps
+          axiomize-reason score --evidence 0.9 --verification 0.85
+          python -c "from axiomize.workflow.reasoning_adapter import ModelCandidate, select_model; print(select_model([ModelCandidate(candidate_id='a', evidence=1.0, verification=1.0), ModelCandidate(candidate_id='b', evidence=0.4, verification=0.3)]))"
 
   installed-package:
     runs-on: ubuntu-latest

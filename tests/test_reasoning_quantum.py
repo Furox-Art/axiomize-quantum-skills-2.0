@@ -1,8 +1,11 @@
-"""axiomize 2.0: quantum-inspired reasoning merged from quantum-reasoning-skill."""
+"""axiomize 2.0: quantum-inspired reasoning + Model IR selection bridge."""
 
 from __future__ import annotations
 
+import pytest
+
 import axiomize.reasoning.branch_controller as bc
+from axiomize.workflow.reasoning_adapter import ModelCandidate, select_model
 
 
 def _metrics(**overrides):  # type: ignore[no-untyped-def]
@@ -112,7 +115,51 @@ class TestReasoningImport:
         assert bc.recommended_width(0.90) == (6, 10)
 
     def test_invalid_metric_fails_fast(self) -> None:
-        import pytest
-
         with pytest.raises(ValueError):
             bc.branch_score(_metrics(evidence=1.2))
+
+
+class TestModelSelectionBridge:
+    def test_strong_leader_is_selected(self) -> None:
+        leader = ModelCandidate(
+            candidate_id="ode-sir",
+            evidence=1.0,
+            verification=1.0,
+            independence=1.0,
+            information_gain=0.8,
+            contradiction=0.0,
+            unresolved_assumptions=0.0,
+            normalized_cost=0.0,
+        )
+        weak = ModelCandidate(
+            candidate_id="algebraic",
+            evidence=0.35,
+            verification=0.30,
+            independence=0.5,
+            information_gain=0.2,
+            contradiction=0.4,
+            unresolved_assumptions=0.5,
+            normalized_cost=0.4,
+        )
+        can_select, reason, leader_id, ranking = select_model([weak, leader])
+        assert can_select, reason
+        assert leader_id == "ode-sir"
+        assert ranking[0] == "ode-sir"
+
+    def test_close_competitors_block_selection(self) -> None:
+        first = ModelCandidate(candidate_id="sir", evidence=1.0, verification=1.0)
+        second = ModelCandidate(candidate_id="seir", evidence=0.95, verification=0.95)
+        can_select, reason, _, ranking = select_model([first, second])
+        assert not can_select
+        assert "margin" in reason
+        assert set(ranking) == {"sir", "seir"}
+
+    def test_shared_assumption_penalizes_ranking(self) -> None:
+        independent = ModelCandidate(
+            candidate_id="free", evidence=0.8, verification=0.8, shared_assumption_ratio=0.0
+        )
+        correlated = ModelCandidate(
+            candidate_id="copy", evidence=0.8, verification=0.8, shared_assumption_ratio=0.8
+        )
+        _, _, _, ranking = select_model([correlated, independent])
+        assert ranking[0] == "free"

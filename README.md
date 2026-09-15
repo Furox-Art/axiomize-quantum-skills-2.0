@@ -1,10 +1,10 @@
-# Axiomize
+# Axiomize Quantum Skills — 2.0
 
 ![License](https://img.shields.io/badge/license-MIT-blue)
 ![Python](https://img.shields.io/badge/python-3.10%2B-informational)
-![CI](https://github.com/Furox-Art/axiomize/actions/workflows/ci.yml/badge.svg)
+![CI](https://github.com/Furox-Art/axiomize-quantum-skills-2.0/actions/workflows/ci.yml/badge.svg)
 
-**A versioned scientific modeling engine and Agent Skill for turning an idea into explicit, testable, reproducible mathematical models.**
+**Axiomize 2.0: a versioned scientific modeling engine with quantum-inspired multi-branch reasoning and deterministic Model IR selection.**
 
 Axiomize combines a machine-readable Model IR with native scientific executors, validation, fitting, uncertainty analysis, causal/Bayesian inference, formal/numerical checks, portable export, and an adaptive modeling workflow. It is designed to make assumptions, solver choices, uncertainty and failure modes visible rather than burying them in generated prose.
 
@@ -13,14 +13,42 @@ Current package line: **2.0.0**. Axiomize 2.0 merges the standalone `quantum-rea
 ## Install
 
 ```bash
-pip install -U axiomize
+pip install -U axiomize-quantum-skills
 ```
 
 Optional PyMC/JAX support:
 
 ```bash
-pip install -U "axiomize[full]"
+pip install -U "axiomize-quantum-skills[full]"
 ```
+
+## Quickstart — quantum reasoning in 5 lines
+
+```python
+from axiomize.workflow.reasoning_adapter import ModelCandidate, select_model
+
+candidates = [
+    ModelCandidate(candidate_id="sir", evidence=1.0, verification=1.0),
+    ModelCandidate(candidate_id="seir", evidence=0.6, verification=0.5),
+]
+can_select, reason, leader, ranking = select_model(candidates)
+print(leader, ranking, reason)  # sir ['sir', 'seir'] collapse criteria satisfied
+```
+
+Or from the shell:
+
+```bash
+axiomize-reason score --evidence 0.9 --verification 0.85
+```
+
+## Skills in this repo
+
+| Skill | File | Purpose |
+|---|---|---|
+| axiomize | `skills/axiomize/SKILL.md` | rigorous modeling workflow (Model IR, validation, fitting, export) |
+| quantum-reasoning | `skills/quantum-reasoning-SKILL.md` | multi-branch hypothesis management (score/prune/revive/collapse) |
+
+See `SKILLS.md` for the skill index and `src/axiomize/reasoning/docs/MEASUREMENT.md` for auditable formulas.
 
 FEniCS/DOLFINx is intentionally an external optional backend because its installation is platform/HPC dependent. When present, Axiomize probes the real runtime before advertising it.
 

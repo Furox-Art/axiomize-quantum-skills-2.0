@@ -36,9 +36,9 @@ def _trigger_version() -> str:
     lines = (ROOT / ".github" / "pypi-release-trigger").read_text(encoding="utf-8").splitlines()
     if not lines:
         raise RuntimeError(".github/pypi-release-trigger is empty")
-    match = re.fullmatch(r"axiomize\s+([^\s]+)", lines[0].strip())
+    match = re.fullmatch(r"axiomize-quantum-skills\s+([^\s]+)", lines[0].strip())
     if not match:
-        raise RuntimeError("first trigger line must be: axiomize <version>")
+        raise RuntimeError("first trigger line must be: axiomize-quantum-skills <version>")
     return match.group(1)
 
 
