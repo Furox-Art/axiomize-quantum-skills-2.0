@@ -95,11 +95,11 @@ def validate_bundle(bundle: Path) -> None:
         raise ValueError(f"{bundle}: README.md must not be empty")
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--root", type=Path, default=Path("benchmark/results/community"))
     parser.add_argument("--allow-empty", action="store_true")
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     root = args.root
     if not root.exists():
         if args.allow_empty:
