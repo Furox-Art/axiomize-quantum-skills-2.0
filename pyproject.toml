@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "axiomize-quantum-skills"
-version = "2.0.0"
+version = "2.1.0"
 description = "Axiomize 2.0: scientific modeling engine plus quantum-inspired multi-branch reasoning and Model IR selection"
 readme = "README.md"
 license = "MIT"
@@ -78,9 +78,7 @@ packages = ["src/axiomize"]
 "skills/axiomize/first-principles.md" = "axiomize/first-principles.md"
 "skills/axiomize/perspectives" = "axiomize/perspectives"
 "skills/axiomize/templates" = "axiomize/templates"
-"skills/quantum-reasoning-SKILL.md" = "axiomize/quantum-reasoning-SKILL.md"
-"src/axiomize/reasoning/docs/MEASUREMENT.md" = "axiomize/reasoning-docs/MEASUREMENT.md"
-"src/axiomize/reasoning/docs/COMPATIBILITY.md" = "axiomize/reasoning-docs/COMPATIBILITY.md"
+"skills/quantum-reasoning" = "axiomize/quantum-reasoning"
 "benchmarks/ideas.json" = "axiomize/data/benchmark_ideas.json"
 
 [tool.hatch.build.targets.sdist]

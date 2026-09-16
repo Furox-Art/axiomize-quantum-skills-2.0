@@ -75,7 +75,7 @@ jobs:
         run: python .github/scripts/scientific_stress_gate.py
       - name: Quantum reasoning release contract
         run: |
-          pytest tests/test_reasoning_quantum.py -q
+          pytest tests/test_reasoning_quantum.py tests/test_reasoning_benchmark.py -q
           axiomize-reason score --evidence 0.9 --verification 0.85
       - name: Real LaTeX console conversion
         shell: bash

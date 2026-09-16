@@ -31,6 +31,21 @@ def find_skill_dir(start: Path) -> Path:
     raise SystemExit("FAIL: could not locate skills/axiomize/SKILL.md")
 
 
+def find_all_skill_dirs(start: Path) -> list[Path]:
+    """Return every skill folder in the repo (any dir with a SKILL.md).
+
+    Axiomize keeps more than one model-facing skill in this repository, so the
+    linter validates all of them, not just ``skills/axiomize``.
+    """
+    primary = find_skill_dir(start)
+    skills_root = primary.parent
+    dirs = [primary]
+    for skill_md in sorted(skills_root.rglob("SKILL.md")):
+        if skill_md.parent != primary:
+            dirs.append(skill_md.parent)
+    return dirs
+
+
 def check_frontmatter(skill_dir: Path):
     text = (skill_dir / "SKILL.md").read_text(encoding="utf-8")
     m = re.match(r"^---\n(.*?)\n---", text, re.S)
@@ -66,41 +81,46 @@ def check_links(md_files):
 
 def main():
     here = Path(__file__).resolve().parent
-    skill_dir = find_skill_dir(here.parent)
+    skill_dirs = find_all_skill_dirs(here.parent)
+    primary = skill_dirs[0]
     failures = []
 
-    print(f"skill dir : {skill_dir}")
+    for skill_dir in skill_dirs:
+        print(f"skill dir : {skill_dir}")
+        try:
+            fm_checks = check_frontmatter(skill_dir)
+            for k, ok in fm_checks.items():
+                print(f"frontmatter / {k:24s} {'PASS' if ok else 'FAIL'}")
+                failures += [] if ok else [f"frontmatter:{skill_dir.name}"]
+        except AssertionError as e:
+            print(f"frontmatter               FAIL ({e})")
+            failures.append(f"frontmatter:{skill_dir.name}")
 
-    try:
-        fm_checks = check_frontmatter(skill_dir)
-        for k, ok in fm_checks.items():
-            print(f"frontmatter / {k:24s} {'PASS' if ok else 'FAIL'}")
-            failures += [] if ok else ["frontmatter"]
-    except AssertionError as e:
-        print(f"frontmatter               FAIL ({e})")
-        failures.append("frontmatter")
-
-    md_files = sorted(p for p in skill_dir.rglob("*.md")) + sorted(
-        p for p in skill_dir.parents[0].rglob("*.md") if not str(p).startswith(str(skill_dir))
+    md_files = sorted(p for p in primary.rglob("*.md")) + sorted(
+        p for p in primary.parents[0].rglob("*.md") if not str(p).startswith(str(primary))
     )
     md_files = list(dict.fromkeys(md_files))
     broken = check_links([p for p in md_files if p.exists()])
-    n_links = "ok"
     if broken:
         for f, t in broken:
-            print(f"broken link: {f.relative_to(skill_dir)} -> {t}")
+            try:
+                shown = f.relative_to(primary)
+            except ValueError:
+                shown = f.relative_to(primary.parents[0])
+            print(f"broken link: {shown} -> {t}")
         failures.append("links")
     else:
         print(f"relative links            PASS ({len(md_files)} md files scanned)")
 
-    for tool in sorted((skill_dir / "tools").glob("*.py")):
-        try:
-            py_compile.compile(str(tool), doraise=True)
-            print(f"compiles / {tool.name:22s} PASS")
-        except py_compile.PyCompileError as e:
-            print(f"compiles / {tool.name:22s} FAIL")
-            print(e)
-            failures.append(f"compile:{tool.name}")
+    for skill_dir in skill_dirs:
+        for tool in sorted((skill_dir / "tools").glob("*.py")):
+            try:
+                py_compile.compile(str(tool), doraise=True)
+                print(f"compiles / {tool.name:22s} PASS")
+            except py_compile.PyCompileError as e:
+                print(f"compiles / {tool.name:22s} FAIL")
+                print(e)
+                failures.append(f"compile:{tool.name}")
 
     if failures:
         print(f"\nRESULT: FAIL ({failures})")

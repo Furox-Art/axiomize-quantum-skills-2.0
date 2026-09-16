@@ -14,3 +14,7 @@ docs/rigor.md
 docs/archetypes.md
 docs/skill.md
 docs/examples.md
+
+# Local build artifacts (wheels/sdists are produced by CI, never committed).
+dist/
+build/

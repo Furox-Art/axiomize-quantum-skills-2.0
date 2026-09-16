@@ -3,7 +3,11 @@ from __future__ import annotations
 import argparse, json, re
 from datetime import date
 from pathlib import Path
-import evaluate
+
+try:  # package import (axiomize.reasoning.benchmark.validate_submission)
+    from . import evaluate
+except ImportError:  # executed directly as a script
+    import evaluate
 
 REQUIRED_FILES = {"metadata.json", "cases.jsonl", "baseline.jsonl", "skill.jsonl", "comparison.json", "README.md"}
 COND_FIELDS = {"instruction_config", "sampling", "tool_availability", "context_limit", "output_limit"}
