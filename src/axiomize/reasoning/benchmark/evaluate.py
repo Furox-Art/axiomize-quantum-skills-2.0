@@ -221,13 +221,13 @@ def ensure_finite(value: Any, label: str) -> None:
         raise ValueError(f"{label} is not finite")
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--cases", type=Path, required=True)
     parser.add_argument("--skill", type=Path, required=True)
     parser.add_argument("--baseline", type=Path)
     parser.add_argument("--output", type=Path)
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     cases = read_jsonl(args.cases)
     skill_results = read_jsonl(args.skill)

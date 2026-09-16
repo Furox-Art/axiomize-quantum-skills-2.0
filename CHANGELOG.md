@@ -8,7 +8,7 @@ All notable changes to Axiomize are documented here. Axiomize follows semantic v
 
 - the quantum-reasoning skill is now a self-contained skill folder, `skills/quantum-reasoning/`, holding `SKILL.md`, `VERSION`, `docs/` and `examples/` (moved from the flat `skills/quantum-reasoning-SKILL.md` file)
 - `axiomize.reasoning.benchmark` is now an importable subpackage; the evaluator and submission validator still run standalone
-- ported benchmark/submission contracts as `tests/test_reasoning_benchmark.py` (9 tests) and the reasoning + Model IR bridge tests in `tests/test_reasoning_quantum.py` (11 tests) — 20 new tests total
+- ported benchmark/submission contracts plus CLI and controller edge-branch tests: `tests/test_reasoning_benchmark.py`, `tests/test_reasoning_quantum.py`, `tests/test_reasoning_contracts.py`, `tests/test_reasoning_cli.py` — 89 reasoning tests, 98% coverage across the merged `axiomize.reasoning` and `axiomize.workflow.reasoning_adapter` modules (branch controller and adapter at 100%)
 - `skills/quantum-reasoning/SKILL.md` frontmatter description now carries an explicit trigger phrase so skill loaders route it correctly
 - `dist/` and `build/` are ignored; local wheel builds no longer show up as untracked files
 
