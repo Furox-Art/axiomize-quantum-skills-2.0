@@ -2,6 +2,24 @@
 
 All notable changes to Axiomize are documented here. Axiomize follows semantic versioning; release claims are tied to exact-wheel CI/release evidence.
 
+## [2.1.0] - 2026-09-16
+
+### Added
+
+- the quantum-reasoning skill is now a self-contained skill folder, `skills/quantum-reasoning/`, holding `SKILL.md`, `VERSION`, `docs/` and `examples/` (moved from the flat `skills/quantum-reasoning-SKILL.md` file)
+- `axiomize.reasoning.benchmark` is now an importable subpackage; the evaluator and submission validator still run standalone
+- ported benchmark/submission contracts as `tests/test_reasoning_benchmark.py` (9 tests) and the reasoning + Model IR bridge tests in `tests/test_reasoning_quantum.py` (11 tests) — 20 new tests total
+- `skills/quantum-reasoning/SKILL.md` frontmatter description now carries an explicit trigger phrase so skill loaders route it correctly
+- `dist/` and `build/` are ignored; local wheel builds no longer show up as untracked files
+
+### Changed
+
+- `skills/axiomize/tools/check_skill.py` now validates every skill folder in the repo (frontmatter, folder/name match, trigger phrase and relative links) instead of only `skills/axiomize`
+- both CI and the release workflow run the full quantum-reasoning contract (`tests/test_reasoning_quantum.py` + `tests/test_reasoning_benchmark.py`)
+- the quantum-reasoning docs live only in `skills/quantum-reasoning/docs/`; the duplicated copies under `src/axiomize/reasoning/docs/` were removed
+- relative links in the ported skill docs, examples and benchmark README now resolve inside the merged layout
+- `pyproject.toml` ships the whole skill folder in the wheel as `axiomize/quantum-reasoning/`
+
 ## [2.0.0] - 2026-09-16
 
 ### Merged
@@ -10,7 +28,7 @@ All notable changes to Axiomize are documented here. Axiomize follows semantic v
   - `src/axiomize/reasoning/branch_controller.py` — deterministic branch score/prune/revive/collapse logic, ported verbatim
   - `src/axiomize/reasoning/benchmark/` — evaluator, submission validator, seed cases + JSON schemas
   - `src/axiomize/reasoning/docs/` — MEASUREMENT + COMPATIBILITY contracts
-  - `skills/quantum-reasoning-SKILL.md` — model-facing protocol, kept alongside the existing axiomize skill
+  - `skills/quantum-reasoning/` — model-facing protocol, docs and examples (moved from the standalone repo layout)
   - `tests/test_reasoning_quantum.py` — 8 ported tests, all passing
 - previous `quantum-reasoning-skill` repo is superseded; its README now points here and the repo will be archived
 

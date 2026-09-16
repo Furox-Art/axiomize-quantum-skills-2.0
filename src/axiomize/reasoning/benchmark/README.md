@@ -57,16 +57,16 @@ Skill-aware runners may additionally record observable aggregate telemetry such 
 ## Evaluate one run
 
 ```bash
-python benchmark/evaluate.py \
-  --cases benchmark/cases.jsonl \
+python src/axiomize/reasoning/benchmark/evaluate.py \
+  --cases src/axiomize/reasoning/benchmark/cases.jsonl \
   --skill path/to/skill-results.jsonl
 ```
 
 ## Compare baseline vs skill
 
 ```bash
-python benchmark/evaluate.py \
-  --cases benchmark/cases.jsonl \
+python src/axiomize/reasoning/benchmark/evaluate.py \
+  --cases src/axiomize/reasoning/benchmark/cases.jsonl \
   --baseline path/to/baseline-results.jsonl \
   --skill path/to/skill-results.jsonl \
   --output comparison.json
@@ -101,7 +101,6 @@ Results can be submitted in either of two ways:
 ```text
 benchmark/results/community/<provider>-<model>-<YYYY-MM-DD>/
 ```
-
 Every benchmark-result PR bundle must contain:
 
 ```text
@@ -115,20 +114,20 @@ README.md
 
 Including `cases.jsonl` inside the bundle makes the exact evaluated case set immutable and reviewable even when custom cases are used.
 
-Generate `comparison.json` with `benchmark/evaluate.py`; do not hand-edit it. Before opening a PR, validate the bundle:
+Generate `comparison.json` with `src/axiomize/reasoning/benchmark/evaluate.py`; do not hand-edit it. Before opening a PR, validate the bundle:
 
 ```bash
-python benchmark/validate_submission.py --root benchmark/results/community
+python src/axiomize/reasoning/benchmark/validate_submission.py --root benchmark/results/community
 ```
 
 CI runs the same validator. It rejects missing artifacts, incomplete metadata, duplicate/missing case results, and a `comparison.json` that differs from a fresh evaluator recomputation.
 
-See [`../CONTRIBUTING.md`](../CONTRIBUTING.md) for the complete submission and integrity policy.
+See [`../../../../CONTRIBUTING.md`](../../../../CONTRIBUTING.md) for the complete submission and integrity policy.
 
 ## Interpretation
 
 A useful result is not simply "skill accuracy is higher". Report the trade-off between accuracy and compute. A skill that gains 1 percentage point while using 5x tokens may be undesirable for many workloads.
 
-The reference thresholds in `reference/branch_controller.py` are defaults to test, not validated constants. Benchmark evidence should drive later calibration.
+The reference thresholds in `src/axiomize/reasoning/branch_controller.py` are defaults to test, not validated constants. Benchmark evidence should drive later calibration.
 
 The project makes no universal performance claim from a single model, provider, benchmark or contributor submission. Independent replication is preferred.

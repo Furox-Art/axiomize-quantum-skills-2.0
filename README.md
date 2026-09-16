@@ -8,7 +8,7 @@
 
 Axiomize combines a machine-readable Model IR with native scientific executors, validation, fitting, uncertainty analysis, causal/Bayesian inference, formal/numerical checks, portable export, and an adaptive modeling workflow. It is designed to make assumptions, solver choices, uncertainty and failure modes visible rather than burying them in generated prose.
 
-Current package line: **2.0.0**. Axiomize 2.0 merges the standalone `quantum-reasoning-skill` (v0.3.1) into the engine as `axiomize.reasoning` — multi-branch hypothesis management (score/prune/revive/collapse) now lives next to Model IR execution. The quantum-reasoning reference defaults (thresholds/weights) are ported verbatim; they remain reference defaults, not validated constants.
+Current package line: **2.1.0**. Axiomize 2.0 merged the standalone `quantum-reasoning-skill` (v0.3.1) into the engine as `axiomize.reasoning` — multi-branch hypothesis management (score/prune/revive/collapse) now lives next to Model IR execution. 2.1 makes the skill self-contained under `skills/quantum-reasoning/`, adds benchmark/submission tests to CI, and validates every skill folder with the linter. The quantum-reasoning reference defaults (thresholds/weights) are ported verbatim; they remain reference defaults, not validated constants.
 
 ## Install
 
@@ -46,9 +46,9 @@ axiomize-reason score --evidence 0.9 --verification 0.85
 | Skill | File | Purpose |
 |---|---|---|
 | axiomize | `skills/axiomize/SKILL.md` | rigorous modeling workflow (Model IR, validation, fitting, export) |
-| quantum-reasoning | `skills/quantum-reasoning-SKILL.md` | multi-branch hypothesis management (score/prune/revive/collapse) |
+| quantum-reasoning | `skills/quantum-reasoning/SKILL.md` | multi-branch hypothesis management (score/prune/revive/collapse) |
 
-See `SKILLS.md` for the skill index and `src/axiomize/reasoning/docs/MEASUREMENT.md` for auditable formulas.
+See `SKILLS.md` for the skill index and `skills/quantum-reasoning/docs/MEASUREMENT.md` for auditable formulas.
 
 FEniCS/DOLFINx is intentionally an external optional backend because its installation is platform/HPC dependent. When present, Axiomize probes the real runtime before advertising it.
 

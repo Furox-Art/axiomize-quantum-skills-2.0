@@ -78,7 +78,7 @@ jobs:
             python skills/axiomize/tools/benchmark_runner.py --case "$id" --report "benchmarks/reports/$id.md" || exit 1
           done
       - name: Quantum reasoning contract (score/prune/revive/collapse)
-        run: pytest tests/test_reasoning_quantum.py -v
+        run: pytest tests/test_reasoning_quantum.py tests/test_reasoning_benchmark.py -v
       - name: Quantum reasoning benchmark smoke (evaluator + schemas)
         run: |
           python src/axiomize/reasoning/benchmark/evaluate.py --help
