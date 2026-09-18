@@ -83,6 +83,48 @@
       "min_lenses_built": 2,
       "must_reject_at_least_one": true,
       "numeric_oracle": {"keyword": "yield", "expected": 0.85, "tolerance": 0.1}
+    },
+    {
+      "id": "biology-predator-prey",
+      "prompt": "Model this idea mathematically: wolves and deer share an island; deer grow fast but wolves starve without prey.",
+      "must_contain": ["Lotka|Volterra", "predator|wolf", "prey|deer|rabbit", "coupled|equilibrium|oscil"],
+      "expected_archetype": "Lotka-Volterra predator-prey",
+      "min_lenses_built": 2,
+      "must_reject_at_least_one": true
+    },
+    {
+      "id": "physics-heat-conduction",
+      "prompt": "Model this idea mathematically: a 50W LED bulb in an aluminum housing reaches thermal equilibrium with 25C ambient air; estimate the steady-state temperature rise.",
+      "must_contain": ["Fourier|heat conduction|thermal", "steady|equilibrium|Newton", "thermal resistance|convection|Biot"],
+      "expected_archetype": "steady-state heat conduction",
+      "min_lenses_built": 2,
+      "must_reject_at_least_one": false,
+      "numeric_oracle": {"keyword": "temperature|rise|delta|dT", "expected": 50, "tolerance": 30}
+    },
+    {
+      "id": "operations-inventory",
+      "prompt": "Model this idea mathematically: a store stocks a product with uncertain demand; how often should it reorder to avoid stockouts without overstock?",
+      "must_contain": ["EOQ|economic order", "newsvendor|(Q,R)|base-stock|safety stock", "Poisson|normal|demand", "holding|stockout|service level"],
+      "expected_archetype": "EOQ inventory optimization",
+      "min_lenses_built": 2,
+      "must_reject_at_least_one": true
+    },
+    {
+      "id": "chemistry-equilibrium",
+      "prompt": "Model this idea mathematically: nitrogen and hydrogen react to form ammonia in a Haber process reactor at high pressure.",
+      "must_contain": ["equilibrium|K_eq|K", "stoichiometr", "Le Chatelier", "pressure|shift|equilibrium"],
+      "expected_archetype": "chemical equilibrium",
+      "min_lenses_built": 2,
+      "must_reject_at_least_one": true,
+      "numeric_oracle": {"keyword": "K|constant|ratio", "expected": 0.06, "tolerance": 0.05}
+    },
+    {
+      "id": "causal-confounding",
+      "prompt": "Model this idea mathematically: ice cream sales and drowning deaths rise together in summer; does ice cream cause drownings?",
+      "must_contain": ["confound|third variable|spurious", "DAG|backdoor|covariate|adjust", "season|temperature|humidity", "correlation != causation|causal"],
+      "expected_archetype": "confounding bias",
+      "min_lenses_built": 2,
+      "must_reject_at_least_one": false
     }
   ]
 }

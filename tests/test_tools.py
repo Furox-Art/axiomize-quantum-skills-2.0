@@ -196,7 +196,7 @@ class TestBenchmarkGate:
             missing = required - set(case.keys())
             assert not missing, f"case {case.get('id')} missing {missing}"
 
-    def test_case_count_is_10(self, ideas_json):
+    def test_case_count_matches_expected(self, ideas_json):
         # CI runs exactly this many cases; if a case is silently dropped the
-        # count stays at 8 and the regression goes unnoticed.
-        assert len(ideas_json["cases"]) == 10
+        # count shrinks and the regression goes unnoticed.
+        assert len(ideas_json["cases"]) == 15

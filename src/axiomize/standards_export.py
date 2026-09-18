@@ -253,9 +253,38 @@ def export_cellml_2(model: ModelIR) -> dict[str, Any]:
                 apply_eq.append(child)
 
     content = _xml_text(root)
-    return {"status": "PASS", "format": "cellml-2.0", "standard": "CellML 2.0", "content": content,
-            "validation": {"xml_well_formed": True, "schema_validation": "NOT_RUN",
-                           "detail": "export is restricted to a conservative CellML 2.0 ODE/algebraic subset; full libCellML validation is not bundled"}}
+    validation = _validate_cellml(content)
+    return {"status": "PASS" if validation.get("schema_validation") != "FAIL" else "FAIL",
+            "format": "cellml-2.0", "standard": "CellML 2.0", "content": content,
+            "validation": validation}
+
+
+def _validate_cellml(content: str) -> dict[str, Any]:
+    """Optionally validate a CellML 2.0 document using libCellML if installed."""
+    validation: dict[str, Any] = {
+        "xml_well_formed": True,
+        "schema_validation": "NOT_RUN",
+        "detail": "libCellML not installed; install python-libcellml for full CellML 2.0 schema and semantic validation",
+    }
+    try:
+        import libcellml  # type: ignore
+
+        validator = libcellml.Validator()
+        validator.parse_text(content)
+        validator.validate()
+        errors = int(validator.error_count())
+        if errors == 0:
+            validation = {"xml_well_formed": True, "schema_validation": "PASS", "libcellml_errors": 0}
+        else:
+            validation = {
+                "xml_well_formed": True,
+                "schema_validation": "FAIL",
+                "libcellml_errors": errors,
+                "messages": [str(validator.error(i)) for i in range(min(errors, 20))],
+            }
+    except ImportError:
+        pass
+    return validation
 
 
 def export_notebook(model: ModelIR) -> dict[str, Any]:

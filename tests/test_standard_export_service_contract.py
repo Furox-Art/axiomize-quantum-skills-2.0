@@ -27,3 +27,18 @@ def test_standard_export_contract_is_adapter_safe() -> None:
 
     old_alias = model_export_service({"model_ir": MODEL, "format": "sbml"})
     assert old_alias["status"] == "ADAPTER_REQUIRED"
+
+
+def test_cellml_export_includes_schema_validation_status() -> None:
+    cellml = model_export_service({"model_ir": MODEL, "format": "cellml-2.0"})
+    assert cellml["status"] == "PASS"
+    assert "schema_validation" in cellml["validation"]
+    assert cellml["validation"]["schema_validation"] in ("PASS", "NOT_RUN", "FAIL")
+
+
+def test_cellml_validation_graceful_without_libcellml() -> None:
+    from axiomize.standards_export import _validate_cellml
+
+    result = _validate_cellml("<invalid-cellml></invalid-cellml>")
+    assert result["xml_well_formed"] is True
+    assert result["schema_validation"] in ("PASS", "NOT_RUN")
