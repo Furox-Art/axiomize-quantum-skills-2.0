@@ -7,6 +7,7 @@ from importlib import metadata
 from typing import Any
 
 from axiomize.formal.lean_adapter import LeanAdapter
+from axiomize.tools.autodiff.jax_tool import JAXTool
 from axiomize.tools.logic.z3_tool import Z3Tool
 from axiomize.tools.numerical.scipy_tool import SciPyTool
 from axiomize.tools.optimization.casadi_tool import CasadiTool
@@ -34,7 +35,7 @@ def _module_tool(name: str, module: str, distribution: str,
 
 def collect_tool_inventory() -> dict[str, Any]:
     tools: dict[str, Any] = {}
-    for cls in (SymPyTool, SciPyTool, StatsmodelsTool, CvxpyTool, CasadiTool, Z3Tool, LeanAdapter):
+    for cls in (SymPyTool, SciPyTool, StatsmodelsTool, CvxpyTool, CasadiTool, JAXTool, Z3Tool, LeanAdapter):
         meta = cls.availability()
         tools[meta.name] = {
             "available": meta.available,
@@ -58,10 +59,6 @@ def collect_tool_inventory() -> dict[str, Any]:
     tools["pymc"] = _module_tool(
         "pymc", "pymc", "pymc",
         ["bayesian_inference", "mcmc", "posterior_diagnostics"],
-    )
-    tools["jax"] = _module_tool(
-        "jax", "jax", "jax",
-        ["automatic_differentiation", "accelerated_numerics"],
     )
     tools["fenics"] = _module_tool(
         "fenics", "fenics", "fenics",

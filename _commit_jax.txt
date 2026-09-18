@@ -1,0 +1,12 @@
+implement: JAX automatic differentiation backend (GAP-1)
+
+- src/axiomize/tools/autodiff/jax_tool.py: JAXTool(ScientificTool) with
+  grad, jacobian, hessian via jax.grad/jacfwd/hessian, custom function
+  expressions via sympy.lambdify(modules="jax")
+- src/axiomize/tools/autodiff/__init__.py: package init
+- src/axiomize/tools/inventory.py: register JAXTool in collect_tool_inventory
+- tests/test_gap1_pymc_jax.py: 8 new tests (availability, input validation,
+  grad of x^2=6, hessian of x^2=2, array grad, custom sin(x) grad, bad op,
+  missing x) -- previously-failing test_jax_real_grad_when_installed now PASS
+
+Co-authored-by: CommandCodeBot <noreply@commandcode.ai>

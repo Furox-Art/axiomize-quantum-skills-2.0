@@ -73,6 +73,85 @@ def test_jax_real_grad_when_installed():
     assert isinstance(out, dict)
 
 
+def test_jax_tool_availability_matches_reality():
+    from axiomize.tools.autodiff.jax_tool import JAXTool
+
+    meta = JAXTool.availability()
+    assert meta.available == _spec_present("jax")
+    if meta.available:
+        assert isinstance(meta.version, str)
+    else:
+        assert isinstance(meta.reason, str) and meta.reason
+
+
+def test_jax_execute_never_fakes_without_jax():
+    from axiomize.tools.autodiff.jax_tool import JAXTool
+
+    tool = JAXTool()
+    if _spec_present("jax"):
+        with pytest.raises(ValueError):
+            tool.execute({})
+    else:
+        with pytest.raises(RuntimeError, match="TOOL_UNAVAILABLE"):
+            tool.execute({"operation": "grad", "x": 3.0})
+
+
+def test_jax_grad_of_square_is_correct():
+    if not _spec_present("jax"):
+        pytest.skip("jax not installed")
+    from axiomize.tools.autodiff.jax_tool import JAXTool
+
+    out = JAXTool().execute({"operation": "grad", "x": 3.0})
+    assert out["status"] == "PASS"
+    assert out["gradient"] == pytest.approx(6.0)
+    assert out["backend"].startswith("jax-")
+
+
+def test_jax_hessian_of_square_is_two():
+    if not _spec_present("jax"):
+        pytest.skip("jax not installed")
+    from axiomize.tools.autodiff.jax_tool import JAXTool
+
+    out = JAXTool().execute({"operation": "hessian", "x": 3.0})
+    assert out["status"] == "PASS"
+    assert out["hessian"] == pytest.approx(2.0)
+
+
+def test_jax_grad_array_input():
+    if not _spec_present("jax"):
+        pytest.skip("jax not installed")
+    import numpy as np
+    from axiomize.tools.autodiff.jax_tool import JAXTool
+
+    out = JAXTool().execute({"operation": "grad", "x": [1.0, 2.0, 3.0]})
+    assert out["status"] == "PASS"
+    np.testing.assert_allclose(out["gradient"], [2.0, 4.0, 6.0])
+
+
+def test_jax_grad_custom_function():
+    if not _spec_present("jax"):
+        pytest.skip("jax not installed")
+    from axiomize.tools.autodiff.jax_tool import JAXTool
+
+    out = JAXTool().execute({"operation": "grad", "x": 0.0, "function": "sin(x)"})
+    assert out["status"] == "PASS"
+    assert out["gradient"] == pytest.approx(1.0)
+
+
+def test_jax_unsupported_operation_raises():
+    from axiomize.tools.autodiff.jax_tool import JAXTool
+
+    with pytest.raises(ValueError, match="operation"):
+        JAXTool().validate_input({"operation": "integrate", "x": 3.0})
+
+
+def test_jax_missing_x_raises():
+    from axiomize.tools.autodiff.jax_tool import JAXTool
+
+    with pytest.raises(ValueError, match="x"):
+        JAXTool().validate_input({"operation": "grad"})
+
+
 def test_jax_capabilities_honest():
     from axiomize.capabilities import get_capabilities
 
