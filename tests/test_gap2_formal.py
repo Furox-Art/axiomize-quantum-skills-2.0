@@ -43,7 +43,7 @@ def test_true_theorem_proved_by_real_lean():
     adapter = LeanAdapter()
     if not LeanAdapter.availability().available:
         pytest.skip("lean toolchain yok; TOOL_UNAVAILABLE yolu gecerli")
-    result = adapter.execute({"theorem": TRUE_THEOREM})
+    result = adapter.execute({"theorem": TRUE_THEOREM, "allow_unsafe_execution": True})
     assert result["status"] == ValidationStatus.PASS.value
     assert result["proved"] is True
 
@@ -52,7 +52,7 @@ def test_false_theorem_rejected_by_real_lean():
     adapter = LeanAdapter()
     if not LeanAdapter.availability().available:
         pytest.skip("lean toolchain yok; TOOL_UNAVAILABLE yolu gecerli")
-    result = adapter.execute({"theorem": FALSE_THEOREM})
+    result = adapter.execute({"theorem": FALSE_THEOREM, "allow_unsafe_execution": True})
     assert result["status"] == ValidationStatus.FAIL.value
     assert result["proved"] is False
     assert result.get("lean_output")

@@ -1,0 +1,7 @@
+﻿fix: Lean formal tests now pass with allow_unsafe_execution flag
+
+- tests/test_gap2_formal.py: add allow_unsafe_execution=True to the two
+  real-Lean test payloads so the adapter actually elaborates the theorem
+  instead of returning INCONCLUSIVE at the trust gate
+
+Co-authored-by: CommandCodeBot <noreply@commandcode.ai>
