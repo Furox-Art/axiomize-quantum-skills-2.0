@@ -6,6 +6,8 @@ from typing import Any
 
 import numpy as np
 
+from axiomize.bayesian.likelihoods import resolve_family, replicate
+
 
 def _autocorrelation(x: np.ndarray, max_lag: int) -> np.ndarray:
     x = np.asarray(x, dtype=float)
@@ -82,21 +84,28 @@ def posterior_diagnostics(chains: np.ndarray, names: list[str]) -> dict[str, Any
     return {"status": overall, "parameters": result}
 
 
-def normal_posterior_predictive(*, observed: np.ndarray, means: np.ndarray, sigmas: np.ndarray,
-                                seed: int, max_replications: int = 1000) -> dict[str, Any]:
+def posterior_predictive(*, family: str = "normal", observed: np.ndarray,
+                         means: np.ndarray, sigmas: np.ndarray | None = None,
+                         seed: int, max_replications: int = 1000) -> dict[str, Any]:
+    """Posterior predictive checks for any likelihood family.
+
+    Dispatches replication to the matching likelihood family so that PPC
+    works for Poisson, Bernoulli, Gamma, etc. in addition to Gaussian.
+    """
+    fam = resolve_family(family)
     observed = np.asarray(observed, dtype=float)
     means = np.asarray(means, dtype=float)
-    sigmas = np.asarray(sigmas, dtype=float)
     if means.ndim != 2 or means.shape[1] != observed.size:
         raise ValueError("PPC means must have shape [draws, observations]")
-    if sigmas.ndim != 1 or sigmas.size != means.shape[0]:
+    if sigmas is not None and (sigmas.ndim != 1 or sigmas.size != means.shape[0]):
         raise ValueError("PPC sigma vector must match posterior draws")
     count = min(max_replications, means.shape[0])
     if count < 10:
         raise ValueError("PPC requires at least 10 posterior draws")
     indices = np.linspace(0, means.shape[0] - 1, count, dtype=int)
     rng = np.random.default_rng(seed)
-    replicated = rng.normal(means[indices], sigmas[indices, None])
+    selected_sigmas = sigmas[indices] if sigmas is not None else None
+    replicated = replicate(fam, means[indices], selected_sigmas, rng)
     pred_mean = np.mean(replicated, axis=0)
     lo90, hi90 = np.quantile(replicated, [0.05, 0.95], axis=0)
     lo95, hi95 = np.quantile(replicated, [0.025, 0.975], axis=0)
@@ -104,6 +113,7 @@ def normal_posterior_predictive(*, observed: np.ndarray, means: np.ndarray, sigm
     rep_means = np.mean(replicated, axis=1); rep_sds = np.std(replicated, axis=1, ddof=1)
     return {
         "status": "PASS",
+        "family": fam,
         "replications": int(count),
         "seed": int(seed),
         "predictive_rmse": float(np.sqrt(np.mean((pred_mean - observed) ** 2))),
@@ -119,3 +129,12 @@ def normal_posterior_predictive(*, observed: np.ndarray, means: np.ndarray, sigm
             "mean_of_stds": float(np.mean(rep_sds)),
         },
     }
+
+
+def normal_posterior_predictive(*, observed: np.ndarray, means: np.ndarray, sigmas: np.ndarray,
+                                seed: int, max_replications: int = 1000) -> dict[str, Any]:
+    """Backward-compatible wrapper for the Gaussian likelihood PPC."""
+    return posterior_predictive(
+        family="normal", observed=observed, means=means,
+        sigmas=sigmas, seed=seed, max_replications=max_replications,
+    )

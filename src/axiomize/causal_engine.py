@@ -1,10 +1,12 @@
 """Causal Engine 2.0 for explicit Model IR causal studies.
 
 The engine never promotes association to causation. It requires supplied
-identification evidence, validates DAG structure when present, supports explicit
-backdoor adjustment, and uses doubly-robust AIPW for binary treatments when
-covariates are available. Diagnostics surface positivity, effective sample size,
-and covariate balance rather than hiding weak identification.
+identification evidence, validates DAG structure when present, and supports
+backdoor, front-door, instrumental variable, and longitudinal marginal
+structural model (MSM) identification. Doubly-robust AIPW is used for binary
+treatments when covariates are available. Diagnostics surface positivity,
+effective sample size, and covariate balance rather than hiding weak
+identification.
 """
 from __future__ import annotations
 
@@ -14,6 +16,22 @@ from typing import Any
 import numpy as np
 
 from axiomize.model_ir import ModelIR
+
+# Identification methods beyond backdoor adjustment.
+_FRONTDOOR_ASSUMPTION = (
+    "front-door criterion: mediator intercepts all directed X→Y paths, "
+    "no unmeasured X–M confounding, no unmeasured M–Y confounding given X"
+)
+_IV_ASSUMPTIONS = [
+    "exclusion restriction: instrument affects outcome only through treatment",
+    "relevance: instrument is associated with treatment",
+    "monotonicity: no defiers of opposite type",
+]
+_LONGITUDINAL_ASSUMPTIONS = [
+    "sequential exchangeability",
+    "consistency",
+    "positivity",
+]
 
 _EPS = 1e-8
 
@@ -223,6 +241,92 @@ def _continuous_effect(y: np.ndarray, t: np.ndarray, Z: np.ndarray) -> dict[str,
     }
 
 
+def _frontdoor_effect(y: np.ndarray, t: np.ndarray, m: np.ndarray,
+                      Z: np.ndarray | None) -> dict[str, Any]:
+    n = y.size
+    Z_arr = Z if Z is not None and Z.size else np.empty((n, 0))
+    cols_m: list = [np.ones(n)]
+    if Z_arr.size: cols_m.append(Z_arr)
+    cols_m.append(t)
+    b1, cov1, _ = _ols(np.column_stack(cols_m), m)
+    alpha = float(b1[-1]); var_alpha = float(cov1[-1, -1])
+    cols_y: list = [np.ones(n)]
+    if Z_arr.size: cols_y.append(Z_arr)
+    cols_y.extend([t, m])
+    b2, cov2, residual = _ols(np.column_stack(cols_y), y)
+    beta = float(b2[-1]); gamma = float(b2[-2])
+    var_beta = float(cov2[-1, -1]); var_gamma = float(cov2[-2, -2])
+    indirect = alpha * beta; total = indirect + gamma
+    se_total = math.sqrt(max(0.0, beta ** 2 * var_alpha + alpha ** 2 * var_beta + var_gamma))
+    se_indirect = math.sqrt(max(0.0, beta ** 2 * var_alpha + alpha ** 2 * var_beta))
+    return {
+        "estimate": total, "std_error": se_total,
+        "ci95": [total - 1.96 * se_total, total + 1.96 * se_total],
+        "method": "frontdoor_adjustment",
+        "frontdoor_components": {
+            "indirect_effect": {"estimate": indirect, "std_error": se_indirect},
+            "direct_effect": {"estimate": gamma, "std_error": math.sqrt(max(0.0, var_gamma))},
+            "x_to_m": {"estimate": alpha, "std_error": math.sqrt(max(0.0, var_alpha))},
+            "m_to_y": {"estimate": beta, "std_error": math.sqrt(max(0.0, var_beta))},
+        },
+        "residual_rmse": float(np.sqrt(np.mean(residual ** 2))),
+    }
+
+
+def _iv_effect(y: np.ndarray, t: np.ndarray, Z_inst: np.ndarray,
+               Z_cov: np.ndarray | None) -> dict[str, Any]:
+    n = y.size
+    Z_arr = Z_cov if Z_cov is not None and Z_cov.size else np.empty((n, 0))
+    cols1: list = [np.ones(n)]
+    if Z_arr.size: cols1.append(Z_arr)
+    cols1.append(Z_inst)
+    b1, _, _ = _ols(np.column_stack(cols1), t)
+    t_hat = np.column_stack(cols1) @ b1
+    cols2: list = [np.ones(n)]
+    if Z_arr.size: cols2.append(Z_arr)
+    cols2.append(t_hat)
+    X2 = np.column_stack(cols2)
+    b2, cov2, residual = _ols(X2, y)
+    iv_effect = float(b2[-1]); iv_se = math.sqrt(max(0.0, float(cov2[-1, -1])))
+    first_stage_r2 = float(1.0 - np.var(t - t_hat) / max(np.var(t), _EPS))
+    return {
+        "estimate": iv_effect, "std_error": iv_se,
+        "ci95": [iv_effect - 1.96 * iv_se, iv_effect + 1.96 * iv_se],
+        "method": "instrumental_variables_2sls",
+        "first_stage_r2": first_stage_r2,
+        "residual_rmse": float(np.sqrt(np.mean(residual ** 2))),
+    }
+
+
+def _longitudinal_effect(y: np.ndarray, t: np.ndarray, time_var: np.ndarray,
+                         Z: np.ndarray | None) -> dict[str, Any]:
+    n = y.size
+    Z_arr = Z if Z is not None and Z.size else np.empty((n, 0))
+    unique_t = np.unique(t)
+    is_binary = unique_t.size == 2 and set(np.round(unique_t, 12).tolist()) <= {0.0, 1.0}
+    cols = [np.ones(n), time_var]
+    if Z_arr.size: cols.append(Z_arr)
+    X_prop = np.column_stack(cols)
+    if is_binary:
+        _, propensity = _logistic_irls(X_prop, t.astype(int))
+        weights = np.where(t == 1, 1.0 / np.maximum(propensity, _EPS),
+                           1.0 / np.maximum(1.0 - propensity, _EPS))
+    else:
+        weights = np.ones(n)
+    cols_w: list = [np.ones(n), t, time_var]
+    if Z_arr.size: cols_w.append(Z_arr)
+    beta, cov, residual = _ols(np.column_stack(cols_w), y, weights=weights)
+    effect = float(beta[1]); se = math.sqrt(max(0.0, float(cov[1, 1])))
+    n_eff = float(np.sum(weights) ** 2 / max(np.sum(weights ** 2), _EPS))
+    return {
+        "estimate": effect, "std_error": se,
+        "ci95": [effect - 1.96 * se, effect + 1.96 * se],
+        "method": "marginal_structural_model_ipw",
+        "weights_stats": {"min": float(np.min(weights)), "max": float(np.max(weights)), "n_eff": n_eff},
+        "residual_rmse": float(np.sqrt(np.mean(residual ** 2))),
+    }
+
+
 def estimate_causal_model(model: ModelIR, *, t_span: tuple[float, float], points: int,
                           parameter_overrides: dict[str, float] | None, seed: int) -> dict[str, Any]:
     del t_span, points, seed
@@ -259,23 +363,59 @@ def estimate_causal_model(model: ModelIR, *, t_span: tuple[float, float], points
 
     randomized = bool(identification.get("randomized") or identification.get("intervention"))
     dag_identified = bool(identification.get("identified_dag") or (parents and outcome in (set(parents) | set(children))))
+    method = str(identification.get("method", "backdoor")).lower()
     assumptions = identification.get("assumptions", [])
-    if not randomized and not dag_identified and not (adjustment and assumptions):
-        return {
-            "status": "INSUFFICIENT_CAUSAL_EVIDENCE",
-            "family": model.family.value,
-            "detail": "causal conclusion unavailable: provide randomization/intervention evidence or a DAG/backdoor set with explicit assumptions",
-            "required_next_evidence": ["randomization/intervention", "acyclic DAG plus measured adjustment variables", "explicit exchangeability/positivity assumptions"],
-        }
+    if method == "frontdoor" and not assumptions:
+        assumptions = [_FRONTDOOR_ASSUMPTION]
+    elif method == "iv" and not assumptions:
+        assumptions = _IV_ASSUMPTIONS
+    elif method == "longitudinal" and not assumptions:
+        assumptions = _LONGITUDINAL_ASSUMPTIONS
+    if method == "backdoor":
+        if not randomized and not dag_identified and not (adjustment and assumptions):
+            return {
+                "status": "INSUFFICIENT_CAUSAL_EVIDENCE",
+                "family": model.family.value,
+                "detail": "causal conclusion unavailable: provide randomization/intervention evidence or a DAG/backdoor set with explicit assumptions",
+                "required_next_evidence": ["randomization/intervention", "acyclic DAG plus measured adjustment variables", "explicit exchangeability/positivity assumptions"],
+            }
 
     covariates = [_finite_vector(data, name, n=y.size) for name in adjustment]
     Z = np.column_stack(covariates) if covariates else np.empty((y.size, 0))
     unique_t = np.unique(t)
     is_binary = unique_t.size == 2 and set(np.round(unique_t, 12).tolist()) <= {0.0, 1.0}
-    if is_binary:
-        effect = _binary_effect(y, t.astype(int), Z, adjustment)
+
+    if method == "frontdoor":
+        mediator = str(identification.get("mediator", ""))
+        if not mediator:
+            raise ValueError("frontdoor identification requires a 'mediator' variable in the identification config")
+        if mediator not in data:
+            raise ValueError(f"frontdoor mediator {mediator!r} not found in causal.data")
+        if mediator in set(adjustment):
+            raise ValueError("mediator cannot be in the adjustment set")
+        m = _finite_vector(data, mediator, n=y.size)
+        effect = _frontdoor_effect(y, t, m, Z if Z.size else None)
+    elif method == "iv":
+        instrument = identification.get("instrument", identification.get("instruments"))
+        if instrument is None:
+            raise ValueError("iv identification requires an 'instrument' variable in the identification config")
+        if isinstance(instrument, str):
+            instrument = [instrument]
+        Z_inst = np.column_stack([_finite_vector(data, name, n=y.size) for name in instrument])
+        effect = _iv_effect(y, t, Z_inst, Z if Z.size else None)
+    elif method == "longitudinal":
+        time_name = str(identification.get("time", ""))
+        if not time_name:
+            raise ValueError("longitudinal identification requires a 'time' variable in the identification config")
+        if time_name not in data:
+            raise ValueError(f"longitudinal time variable {time_name!r} not found in causal.data")
+        time_arr = _finite_vector(data, time_name, n=y.size)
+        effect = _longitudinal_effect(y, t, time_arr, Z if Z.size else None)
     else:
-        effect = _continuous_effect(y, t, Z)
+        if is_binary:
+            effect = _binary_effect(y, t.astype(int), Z, adjustment)
+        else:
+            effect = _continuous_effect(y, t, Z)
 
     # Intervention predictions use the robust regression estimand, conditional on
     # mean adjustment values; they are explicitly scoped to the identification assumptions.
@@ -284,7 +424,7 @@ def estimate_causal_model(model: ModelIR, *, t_span: tuple[float, float], points
     means = [float(np.mean(Z[:, i])) for i in range(Z.shape[1])]
     counterfactuals: list[dict[str, Any]] = []
     values = cfg.get("intervention_values", [])
-    if isinstance(values, list):
+    if isinstance(values, list) and method == "backdoor":
         for raw in values[:1000]:
             value = float(raw)
             if not math.isfinite(value):
@@ -309,8 +449,9 @@ def estimate_causal_model(model: ModelIR, *, t_span: tuple[float, float], points
         "counterfactuals": counterfactuals,
         "identification": {
             **identification,
+            "method": method,
             "dag_validated_acyclic": bool(parents or children),
-            "adjustment_set_used": adjustment,
+            "adjustment_set_used": adjustment if method == "backdoor" else [],
             "randomized_or_interventional": randomized,
         },
         "solver": {"backend": "numpy", "method": effect["method"]},

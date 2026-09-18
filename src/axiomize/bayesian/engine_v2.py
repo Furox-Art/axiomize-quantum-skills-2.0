@@ -6,12 +6,32 @@ from typing import Any
 
 import numpy as np
 
-from axiomize.bayesian.diagnostics import normal_posterior_predictive, posterior_diagnostics
+from axiomize.bayesian.diagnostics import posterior_diagnostics, posterior_predictive
+from axiomize.bayesian.likelihoods import SUPPORTED_FAMILIES, log_likelihood, resolve_family
 from axiomize.limits import MAX_ARRAY_ITEMS, MAX_BAYES_DRAWS, bounded_int, enforce_result_cells
 from axiomize.model_ir import ModelIR
 from axiomize.safe_expression import sympy_expression
 
 _MAX_LIKELIHOOD_WORK = 50_000_000
+
+
+def _resolve_family_safe(name: str | None) -> str:
+    try:
+        return resolve_family(name or "normal")
+    except ValueError:
+        raise ValueError(f"unsupported likelihood family: {name!r}; supported: {SUPPORTED_FAMILIES}")
+
+
+def _validate_observations_for_family(family: str, observed: np.ndarray) -> None:
+    if family == "bernoulli":
+        if not np.all(np.isin(observed, [0, 1])):
+            raise ValueError("bernoulli observations must be 0 or 1")
+    if family == "poisson":
+        if not np.all(observed >= 0):
+            raise ValueError("poisson observations must be non-negative")
+    if family == "gamma":
+        if not np.all(observed > 0):
+            raise ValueError("gamma observations must be strictly positive")
 
 
 def _parameters(model: ModelIR, overrides: dict[str, float] | None) -> dict[str, float]:
@@ -95,6 +115,9 @@ def infer_bayesian_model(model: ModelIR, *, t_span: tuple[float,float], points: 
         else: raise ValueError(f"bayesian.data.{name} must be finite scalar or match observations")
     sigma_spec=cfg.get("sigma",1.0)
     if isinstance(sigma_spec,str) and sigma_spec not in pnames: raise ValueError("bayesian sigma parameter name is unknown")
+    likelihood_cfg=cfg.get("likelihood",{}) if isinstance(cfg.get("likelihood",{}),dict) else {"dist":str(cfg.get("likelihood"))}
+    family=_resolve_family_safe(likelihood_cfg.get("dist","normal"))
+    _validate_observations_for_family(family, observed)
     draws=bounded_int(cfg.get("draws", max(200,int(points))),name="bayesian.draws",minimum=50,maximum=MAX_BAYES_DRAWS)
     burn=bounded_int(cfg.get("burn",max(50,draws//4)),name="bayesian.burn",minimum=0,maximum=MAX_BAYES_DRAWS)
     chains=bounded_int(cfg.get("chains",4),name="bayesian.chains",minimum=2,maximum=8)
@@ -124,8 +147,9 @@ def infer_bayesian_model(model: ModelIR, *, t_span: tuple[float,float], points: 
         if mean.shape!=observed.shape or not np.all(np.isfinite(mean)): return -math.inf
         sigma=env[sigma_spec] if isinstance(sigma_spec,str) else float(sigma_spec)
         if not math.isfinite(float(sigma)) or sigma<=0:return -math.inf
-        r=(observed-mean)/sigma
-        return lp - .5*float(np.dot(r,r)) - observed.size*math.log(float(sigma))
+        ll=log_likelihood(family, observed, mean, sigma=sigma)
+        if not math.isfinite(ll):return -math.inf
+        return lp + ll
     all_chains=np.zeros((chains,draws,len(sampled)),dtype=float); accept=[]
     for c in range(chains):
         rng=np.random.default_rng(int(seed)+104729*c)
@@ -146,22 +170,25 @@ def infer_bayesian_model(model: ModelIR, *, t_span: tuple[float,float], points: 
         summaries[p.name]={"mean":mean,"sd":float(np.std(column,ddof=1)),"q025":float(np.quantile(column,.025)),"median":float(np.quantile(column,.5)),"q975":float(np.quantile(column,.975))}
     diag=posterior_diagnostics(all_chains,[p.name for p in sampled])
     # PPC uses a deterministic bounded subset of posterior draws.
-    ppc_count=min(1000,flat.shape[0]); idx=np.linspace(0,flat.shape[0]-1,ppc_count,dtype=int); ppc_means=[]; ppc_sigmas=[]
+    needs_sigma = family in ("normal", "gamma")
+    ppc_count=min(1000,flat.shape[0]); idx=np.linspace(0,flat.shape[0]-1,ppc_count,dtype=int); ppc_means=[]; ppc_sigmas=None
+    if needs_sigma: ppc_sigmas=[]
     for row in flat[idx]:
         env=dict(parameters)
         for p in sampled: env[p.name]=float(row[index[p.name]])
         mean=np.asarray(fn(*predictor_values,*[env[n] for n in pnames]),dtype=float)
         if mean.ndim==0: mean=np.full(observed.shape,float(mean))
         sigma=env[sigma_spec] if isinstance(sigma_spec,str) else float(sigma_spec)
-        ppc_means.append(mean); ppc_sigmas.append(sigma)
-    ppc=normal_posterior_predictive(observed=observed,means=np.asarray(ppc_means),sigmas=np.asarray(ppc_sigmas),seed=int(seed)+99991,max_replications=ppc_count)
+        ppc_means.append(mean)
+        if needs_sigma: ppc_sigmas.append(sigma)
+    ppc=posterior_predictive(family=family, observed=observed, means=np.asarray(ppc_means), sigmas=np.asarray(ppc_sigmas) if ppc_sigmas is not None else None, seed=int(seed)+99991, max_replications=ppc_count)
     result:dict[str,Any]={
         "status":"PASS","family":model.family.value,
         "states":{v.name:float(v.initial) for v in model.variables if v.initial is not None},
         "parameters":posterior_params,"posterior":summaries,
         "posterior_predictive":ppc,
-        "solver":{"backend":"builtin","method":"multi_chain_random_walk_metropolis","seed":int(seed)},
-        "diagnostics":{"draws":draws,"burn":burn,"chains":chains,"acceptance_rate_by_chain":accept,"posterior":diag,"finite":bool(np.all(np.isfinite(all_chains)))},
+        "solver":{"backend":"builtin","method":"multi_chain_random_walk_metropolis","likelihood":family,"seed":int(seed)},
+        "diagnostics":{"draws":draws,"burn":burn,"chains":chains,"acceptance_rate_by_chain":accept,"likelihood":family,"posterior":diag,"finite":bool(np.all(np.isfinite(all_chains)))},
     }
     if bool(cfg.get("return_samples",False)):
         result["samples"]={p.name:flat[:,i].tolist() for i,p in enumerate(sampled)}

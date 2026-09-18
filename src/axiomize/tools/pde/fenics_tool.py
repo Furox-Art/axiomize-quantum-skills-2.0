@@ -18,6 +18,7 @@ from axiomize.tools.base import ScientificTool, ToolMetadata
 
 _MAX_CELLS_1D = 100_000
 _MAX_CELLS_2D = 512
+_MAX_CELLS_3D = 64
 
 
 def _finite(value: Any, name: str) -> float:
@@ -29,7 +30,7 @@ def _finite(value: Any, name: str) -> float:
 
 class FEniCSAdapter(ScientificTool):
     name: ClassVar[str] = "fenics"
-    capabilities: ClassVar[list[str]] = ["fem", "pde_weak_form", "poisson"]
+    capabilities: ClassVar[list[str]] = ["fem", "pde_weak_form", "poisson", "nonlinear_fem", "neumann_bc", "mesh_3d"]
 
     @classmethod
     def _probe_backend(cls) -> tuple[str,str]:
@@ -55,19 +56,24 @@ class FEniCSAdapter(ScientificTool):
         except Exception as exc:
             return ToolMetadata(name=cls.name,capabilities=list(cls.capabilities),available=False,reason=str(exc))
         return ToolMetadata(name=cls.name,capabilities=list(cls.capabilities),version=f"{backend}-{version}",available=True,
-                            reason=f"bounded structured Poisson FEM executor via {backend}")
+                            reason=f"bounded structured FEM executor (Poisson/nonlinear, 1D-3D, Dirichlet/Neumann) via {backend}")
 
     def validate_input(self,payload:dict[str,Any])->None:
         if not isinstance(payload,dict): raise ValueError("fenics: payload must be an object")
-        if str(payload.get("problem","poisson")).lower()!="poisson": raise ValueError("fenics: supported problem is 'poisson'")
+        problem=str(payload.get("problem","poisson")).lower()
+        if problem not in ("poisson","nonlinear_poisson"): raise ValueError("fenics: supported problem types are 'poisson' and 'nonlinear_poisson'")
         dimension=payload.get("dimension",1)
-        if isinstance(dimension,bool) or not isinstance(dimension,(int,float)) or not float(dimension).is_integer() or int(dimension) not in {1,2}:
-            raise ValueError("fenics: dimension must be 1 or 2")
+        if isinstance(dimension,bool) or not isinstance(dimension,(int,float)) or not float(dimension).is_integer() or int(dimension) not in {1,2,3}:
+            raise ValueError("fenics: dimension must be 1, 2, or 3")
         cells=payload.get("cells",32)
         if isinstance(cells,bool) or not isinstance(cells,(int,float)) or not float(cells).is_integer(): raise ValueError("fenics: cells must be an integer")
-        cells=int(cells); maximum=_MAX_CELLS_1D if int(dimension)==1 else _MAX_CELLS_2D
+        cells=int(cells); dim=int(dimension); maximum=_MAX_CELLS_1D if dim==1 else (_MAX_CELLS_2D if dim==2 else _MAX_CELLS_3D)
         if not 2<=cells<=maximum: raise ValueError(f"fenics: cells must be in [2, {maximum}]")
-        _finite(payload.get("source",1.0),"source"); _finite(payload.get("dirichlet",0.0),"dirichlet")
+        _finite(payload.get("source",1.0),"source"); _finite(payload.get("dirichlet",0.0),"dirichlet"); _finite(payload.get("neumann",0.0),"neumann")
+        if problem=="nonlinear_poisson":
+            exponent=payload.get("nonlinear_exponent",2.0)
+            _finite(exponent,"nonlinear_exponent")
+            if exponent<=0 or exponent>5: raise ValueError("fenics: nonlinear_exponent must be in (0, 5]")
         degree=payload.get("degree",1)
         if degree!=1: raise ValueError("fenics: current bounded executor supports degree=1 only")
 
@@ -84,11 +90,16 @@ class FEniCSAdapter(ScientificTool):
         from mpi4py import MPI
         from petsc4py import PETSc
         from dolfinx import fem,mesh
-        from dolfinx.fem.petsc import LinearProblem
+        from dolfinx.fem.petsc import LinearProblem,NonlinearProblem
+        from dolfinx.nls.petsc import NewtonSolver
         import ufl
         if MPI.COMM_WORLD.size!=1: raise RuntimeError("fenics: bounded executor currently requires a single MPI rank")
-        dim=int(payload.get("dimension",1)); cells=int(payload.get("cells",32)); source=_finite(payload.get("source",1.0),"source"); boundary=_finite(payload.get("dirichlet",0.0),"dirichlet")
-        domain=mesh.create_unit_interval(MPI.COMM_WORLD,cells) if dim==1 else mesh.create_unit_square(MPI.COMM_WORLD,cells,cells)
+        problem=str(payload.get("problem","poisson")).lower()
+        dim=int(payload.get("dimension",1)); cells=int(payload.get("cells",32))
+        source=_finite(payload.get("source",1.0),"source"); boundary=_finite(payload.get("dirichlet",0.0),"dirichlet"); neumann=_finite(payload.get("neumann",0.0),"neumann")
+        if dim==1: domain=mesh.create_unit_interval(MPI.COMM_WORLD,cells)
+        elif dim==2: domain=mesh.create_unit_square(MPI.COMM_WORLD,cells,cells)
+        else: domain=mesh.create_unit_cube(MPI.COMM_WORLD,cells,cells,cells)
         try: V=fem.functionspace(domain,("Lagrange",1))
         except AttributeError: V=fem.FunctionSpace(domain,("Lagrange",1))
         fdim=domain.topology.dim-1
@@ -96,24 +107,50 @@ class FEniCSAdapter(ScientificTool):
         dofs=fem.locate_dofs_topological(V,fdim,facets)
         g=fem.Function(V); g.x.array[:]=PETSc.ScalarType(boundary)
         bc=fem.dirichletbc(g,dofs)
-        u=ufl.TrialFunction(V); v=ufl.TestFunction(V); forcing=fem.Constant(domain,PETSc.ScalarType(source))
-        a=ufl.inner(ufl.grad(u),ufl.grad(v))*ufl.dx; L=forcing*v*ufl.dx
-        problem=LinearProblem(a,L,bcs=[bc],petsc_options={"ksp_type":"preonly","pc_type":"lu"})
-        uh=problem.solve(); values=np.asarray(uh.x.array,dtype=float)
+        forcing=fem.Constant(domain,PETSc.ScalarType(source))
+        neumann_c=PETSc.ScalarType(neumann)
+        ds=ufl.Measure("ds",domain=domain)
+        v=ufl.TestFunction(V)
+        if problem=="poisson":
+            u=ufl.TrialFunction(V)
+            a_form=ufl.inner(ufl.grad(u),ufl.grad(v))*ufl.dx
+            L=forcing*v*ufl.dx + neumann_c*v*ds
+            p=LinearProblem(a_form,L,bcs=[bc],petsc_options={"ksp_type":"preonly","pc_type":"lu"})
+            uh=p.solve()
+            values=np.asarray(uh.x.array,dtype=float)
+        else:
+            exponent=_finite(payload.get("nonlinear_exponent",2.0),"nonlinear_exponent")
+            u=fem.Function(V); F=ufl.inner(u**exponent*ufl.grad(u),ufl.grad(v))*ufl.dx-forcing*v*ufl.dx-neumann_c*v*ds
+            problem_nlp=NonlinearProblem(F,u,bcs=[bc])
+            solver=NewtonSolver(MPI.COMM_WORLD,problem_nlp); solver.convergence_criterion="incremental"; solver.atol=1e-12; solver.rtol=1e-12
+            solver.solve(u)
+            uh=u; values=np.asarray(uh.x.array,dtype=float)
         l2=math.sqrt(max(0.0,float(fem.assemble_scalar(fem.form(ufl.inner(uh,uh)*ufl.dx)))))
         if not np.all(np.isfinite(values)) or not math.isfinite(l2): raise RuntimeError("fenics: non-finite FEM solution")
-        return {"status":"PASS","backend":"dolfinx","problem":"poisson","dimension":dim,"cells":cells,"degree":1,
+        return {"status":"PASS","backend":"dolfinx","problem":problem,"dimension":dim,"cells":cells,"degree":1,"nonlinear_exponent":_finite(payload.get("nonlinear_exponent",1.0),"nonlinear_exponent") if problem=="nonlinear_poisson" else 1,
                 "dofs":int(values.size),"solution":{"min":float(np.min(values)),"max":float(np.max(values)),"l2":l2,"finite":True}}
 
     @staticmethod
     def _solve_legacy(payload:dict[str,Any])->dict[str,Any]:
         import fenics as fe  # type: ignore[import-untyped]
-        dim=int(payload.get("dimension",1)); cells=int(payload.get("cells",32)); source=_finite(payload.get("source",1.0),"source"); boundary=_finite(payload.get("dirichlet",0.0),"dirichlet")
-        domain=fe.UnitIntervalMesh(cells) if dim==1 else fe.UnitSquareMesh(cells,cells)
-        V=fe.FunctionSpace(domain,"P",1); u=fe.TrialFunction(V); v=fe.TestFunction(V)
-        a=fe.dot(fe.grad(u),fe.grad(v))*fe.dx; L=fe.Constant(source)*v*fe.dx
-        bc=fe.DirichletBC(V,fe.Constant(boundary),"on_boundary"); uh=fe.Function(V); fe.solve(a==L,uh,bc)
+        problem=str(payload.get("problem","poisson")).lower()
+        dim=int(payload.get("dimension",1)); cells=int(payload.get("cells",32))
+        source=_finite(payload.get("source",1.0),"source"); boundary=_finite(payload.get("dirichlet",0.0),"dirichlet"); neumann=_finite(payload.get("neumann",0.0),"neumann")
+        domain=fe.UnitIntervalMesh(cells) if dim==1 else (fe.UnitSquareMesh(cells,cells) if dim==2 else fe.UnitCubeMesh(cells,cells,cells))
+        V=fe.FunctionSpace(domain,"P",1); v=fe.TestFunction(V); ds=fe.Measure("ds")
+        bc=fe.DirichletBC(V,fe.Constant(boundary),"on_boundary")
+        if problem=="poisson":
+            u=fe.TrialFunction(V)
+            a=fe.dot(fe.grad(u),fe.grad(v))*fe.dx; L=fe.Constant(source)*v*fe.dx+fe.Constant(neumann)*v*ds
+            uh=fe.Function(V); fe.solve(a==L,uh,bc)
+        else:
+            exponent=_finite(payload.get("nonlinear_exponent",2.0),"nonlinear_exponent")
+            u=fe.Function(V); F=fe.dot(u**exponent*fe.grad(u),fe.grad(v))*fe.dx-fe.Constant(source)*v*fe.dx-fe.Constant(neumann)*v*ds
+            problem_nlp=fe.NonlinearVariationalProblem(F,u,bc)
+            solver=fe.NonlinearVariationalSolver(problem_nlp); solver.solve(u)
+            uh=u
         values=np.asarray(uh.vector().get_local(),dtype=float); l2=float(fe.norm(uh,"L2"))
         if not np.all(np.isfinite(values)) or not math.isfinite(l2): raise RuntimeError("fenics: non-finite FEM solution")
-        return {"status":"PASS","backend":"fenics","problem":"poisson","dimension":dim,"cells":cells,"degree":1,
+        return {"status":"PASS","backend":"fenics","problem":problem,"dimension":dim,"cells":cells,"degree":1,
+                "nonlinear_exponent":_finite(payload.get("nonlinear_exponent",1.0),"nonlinear_exponent") if problem=="nonlinear_poisson" else 1,
                 "dofs":int(V.dim()),"solution":{"min":float(np.min(values)),"max":float(np.max(values)),"l2":l2,"finite":True}}

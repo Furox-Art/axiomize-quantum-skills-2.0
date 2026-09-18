@@ -85,7 +85,13 @@ def test_fenics_adapter_is_truthful_and_keeps_structured_input_boundary() -> Non
     else:
         assert meta.reason
     with pytest.raises(ValueError): FEniCSAdapter().validate_input({"problem":"arbitrary_weak_form","weak_form":"exec(...)"})
-    with pytest.raises(ValueError): FEniCSAdapter().validate_input({"problem":"poisson","dimension":3,"cells":4})
+    with pytest.raises(ValueError): FEniCSAdapter().validate_input({"problem":"poisson","dimension":4,"cells":4})
+    with pytest.raises(ValueError): FEniCSAdapter().validate_input({"problem":"poisson","dimension":2,"cells":1})
+    with pytest.raises(ValueError): FEniCSAdapter().validate_input({"problem":"poisson","dimension":1,"cells":4,"source":1.0,"dirichlet":0.0,"degree":2})
+    with pytest.raises(ValueError): FEniCSAdapter().validate_input({"problem":"nonlinear_poisson","dimension":2,"cells":4,"nonlinear_exponent":0.0})
+    FEniCSAdapter().validate_input({"problem":"poisson","dimension":3,"cells":4,"source":1.0,"dirichlet":0.0,"neumann":0.5})
+    FEniCSAdapter().validate_input({"problem":"nonlinear_poisson","dimension":3,"cells":8,"source":1.0,"dirichlet":0.0,"neumann":0.0,"nonlinear_exponent":2.0})
+    FEniCSAdapter().validate_input({"problem":"poisson","dimension":1,"cells":16,"source":1.0,"dirichlet":0.0,"neumann":1.5})
 
 def test_scipy_direct_solver_rejects_invalid_physical_parameters() -> None:
     with pytest.raises(ValueError): solve_sir(-0.1,0.1,1.0,100.0)
