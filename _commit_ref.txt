@@ -1,0 +1,11 @@
+﻿add: numerical reference comparison tests
+
+- tests/test_numerical_reference.py: 5 tests comparing engine outputs against
+  analytical solutions and manual numpy calculations
+- Bayesian Poisson posterior mean vs analytical MLE (sum(y)/sum(x))
+- Bayesian Gaussian posterior mean/std vs conjugate analytical formula
+- Causal IV 2SLS estimate vs manual numpy lstsq
+- Causal front-door estimate vs manual two-OLS calculation
+- Causal longitudinal MSM vs OLS reference
+
+Co-authored-by: CommandCodeBot <noreply@commandcode.ai>
