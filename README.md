@@ -13,13 +13,13 @@ Current package line: **2.1.0**. Axiomize 2.0 merged the standalone `quantum-rea
 ## Install
 
 ```bash
-pip install -U axiomize-quantum-skills
+pip install -U axiomize-quantum-skills-2.0
 ```
 
 Optional PyMC/JAX support:
 
 ```bash
-pip install -U "axiomize-quantum-skills[full]"
+pip install -U "axiomize-quantum-skills-2.0[full]"
 ```
 
 ## Quickstart — quantum reasoning in 5 lines

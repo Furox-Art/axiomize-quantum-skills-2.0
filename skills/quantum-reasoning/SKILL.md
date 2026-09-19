@@ -7,7 +7,7 @@ description: Use when a problem is difficult, ambiguous, high-stakes or multi-st
 
 A model-facing reasoning protocol inspired by the idea of keeping multiple possibilities alive before selection. It runs on classical models and classical hardware; it is not quantum computation.
 
-> Part of **axiomize-quantum-skills 2.0**. The deterministic reference implementation lives in `axiomize.reasoning`, and the Model IR bridge that applies this protocol to competing model families lives in `axiomize.workflow.reasoning_adapter`.
+> Part of **Axiomize 2.0**. The deterministic reference implementation lives in `axiomize.reasoning`, and the Model IR bridge that applies this protocol to competing model families lives in `axiomize.workflow.reasoning_adapter`.
 
 ## When to use
 

@@ -390,7 +390,7 @@ def _test_mcp_cli() -> None:
 
 
 def main() -> int:
-    installed = metadata.version("axiomize-quantum-skills")
+    installed = metadata.version("axiomize-quantum-skills-2.0")
     print(f"Axiomize installed version: {installed}")
     print(f"Python: {sys.version.split()[0]}")
     with tempfile.TemporaryDirectory(prefix="axiomize-cli-smoke-") as tmp:
