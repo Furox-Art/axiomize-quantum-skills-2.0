@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "axiomize-quantum-skills-2.0"
+name = "axiomize-quantum-skills"
 version = "2.1.0"
 description = "Axiomize 2.0: scientific modeling engine plus quantum-inspired multi-branch reasoning and Model IR selection"
 readme = "README.md"

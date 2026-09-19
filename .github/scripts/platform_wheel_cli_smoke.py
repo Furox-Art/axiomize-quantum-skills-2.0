@@ -59,9 +59,9 @@ def _exe(name: str) -> str:
 
 
 def _install_exact_wheel(wheel_dir: Path) -> Path:
-    wheels = sorted(wheel_dir.glob("axiomize_quantum_skills_2_0-*.whl"))
+    wheels = sorted(wheel_dir.glob("axiomize_quantum_skills-*.whl"))
     if len(wheels) != 1:
-        raise SmokeFailure(f"expected exactly one axiomize_quantum_skills_2_0 wheel in {wheel_dir}, found {len(wheels)}")
+        raise SmokeFailure(f"expected exactly one axiomize_quantum_skills wheel in {wheel_dir}, found {len(wheels)}")
     wheel = wheels[0].resolve()
     _run([sys.executable, "-m", "pip", "install", "--force-reinstall", str(wheel)], timeout=600)
     _run([sys.executable, "-m", "pip", "check"], timeout=120)
@@ -157,14 +157,14 @@ def _smoke_cli(work: Path) -> None:
 def _verify_installed_import(work: Path) -> None:
     code = (
         "import axiomize, importlib.metadata as m, pathlib; "
-        "print(m.version('axiomize-quantum-skills-2.0')); "
+        "print(m.version('axiomize-quantum-skills')); "
         "print(pathlib.Path(axiomize.__file__).resolve())"
     )
     proc = _run([sys.executable, "-c", code], cwd=work, timeout=60)
     lines = [line.strip() for line in proc.stdout.splitlines() if line.strip()]
     if not lines:
         raise SmokeFailure("installed package import check produced no output")
-    if lines[0] != metadata.version("axiomize-quantum-skills-2.0"):
+    if lines[0] != metadata.version("axiomize-quantum-skills"):
         raise SmokeFailure("runtime/importlib metadata version mismatch")
 
 
