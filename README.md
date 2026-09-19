@@ -8,7 +8,7 @@
 
 Axiomize combines a machine-readable Model IR with native scientific executors, validation, fitting, uncertainty analysis, causal/Bayesian inference, formal/numerical checks, portable export, and an adaptive modeling workflow. It is designed to make assumptions, solver choices, uncertainty and failure modes visible rather than burying them in generated prose.
 
-Current package line: **2.1.0**. Axiomize 2.0 merged the standalone `quantum-reasoning-skill` (v0.3.1) into the engine as `axiomize.reasoning` — multi-branch hypothesis management (score/prune/revive/collapse) now lives next to Model IR execution. 2.1 makes the skill self-contained under `skills/quantum-reasoning/`, adds benchmark/submission tests to CI, and validates every skill folder with the linter. The quantum-reasoning reference defaults (thresholds/weights) are ported verbatim; they remain reference defaults, not validated constants.
+Current package line: **1.0.0**. This is the first independent release under its own distribution name. Axiomize 2.0 merged the standalone `quantum-reasoning-skill` (v0.3.1) into the engine as `axiomize.reasoning` — multi-branch hypothesis management (score/prune/revive/collapse) now lives next to Model IR execution. The skill is self-contained under `skills/quantum-reasoning/`, benchmark/submission tests run in CI, and every skill folder is validated with the linter. The quantum-reasoning reference defaults (thresholds/weights) are ported verbatim; they remain reference defaults, not validated constants.
 
 ## Install
 

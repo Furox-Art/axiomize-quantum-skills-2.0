@@ -2,6 +2,19 @@
 
 All notable changes to Axiomize are documented here. Axiomize follows semantic versioning; release claims are tied to exact-wheel CI/release evidence.
 
+## [1.0.0] - 2026-09-19
+
+### First independent release
+
+- first release under the distribution name `axiomize-quantum-skills-2.0`
+- carries the full merged engine: Model IR, native model families, causal/Bayesian inference,
+  uncertainty and provenance layers, plus `axiomize.reasoning` (quantum-inspired multi-branch
+  hypothesis management) and the self-contained `skills/quantum-reasoning/` skill folder
+- stored blind-test benchmark coverage completed: all 15 cases in `benchmarks/ideas.json`
+  have reports and grade 10/10
+- CI fully green across Python 3.10-3.13 and Linux/macOS/Windows wheel smoke;
+  trusted-publishing release pipeline publishes the exact tested wheel to PyPI
+
 ## [2.1.0] - 2026-09-16
 
 ### Added
