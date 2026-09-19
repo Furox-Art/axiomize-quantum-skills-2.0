@@ -59,9 +59,9 @@ def _exe(name: str) -> str:
 
 
 def _install_exact_wheel(wheel_dir: Path) -> Path:
-    wheels = sorted(wheel_dir.glob("axiomize-*.whl"))
+    wheels = sorted(wheel_dir.glob("axiomize_quantum_skills-*.whl"))
     if len(wheels) != 1:
-        raise SmokeFailure(f"expected exactly one axiomize wheel in {wheel_dir}, found {len(wheels)}")
+        raise SmokeFailure(f"expected exactly one axiomize_quantum_skills wheel in {wheel_dir}, found {len(wheels)}")
     wheel = wheels[0].resolve()
     _run([sys.executable, "-m", "pip", "install", "--force-reinstall", str(wheel)], timeout=600)
     _run([sys.executable, "-m", "pip", "check"], timeout=120)
