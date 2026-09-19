@@ -47,6 +47,36 @@ Follow the 8-phase structure exactly as in `examples/epidemic-sir.md`. Requireme
 
 Every new model mode must print sanity checks and exit non-zero when they fail. Accepted checks: conservation laws, bounds/monotonicity, agreement with a closed-form theory result (within stated tolerance), or distributional consistency across Monte Carlo runs. CI runs all modes, keep default parameters under ~60s total runtime.
 
+## Adding benchmark cases and reports
+
+Add a case to `benchmarks/ideas.json` with a unique `id`, its `idea`,
+`must_contain` terms, `expected_archetype`, and the required `min_lenses_built`
+and `must_reject_at_least_one` settings. Add the matching report at
+`benchmarks/reports/<id>.md`; CI grades every case against that exact path, so a
+missing report fails with `benchmark report not found`.
+
+List the available case IDs and grade one report locally with the same commands
+used by CI:
+
+```bash
+python skills/axiomize/tools/benchmark_runner.py --case-list
+python skills/axiomize/tools/benchmark_runner.py --case biology-predator-prey --report benchmarks/reports/biology-predator-prey.md
+```
+
+The report should include the case's required terms and archetype, a parameter
+table with a non-empty `Unit` column and `exo`/`endo` classifications, a
+`Violation consequence` column, a `## 4. Perspective models` section with at
+least the case's `min_lenses_built` lens subsections, and a falsifiability
+section. When `must_reject_at_least_one` is true, include a rejected lens and
+the reason. The automated checks pass at **7.5/10 or higher**; this is only the
+automated layer, and the human rubric still applies.
+
+Two easy-to-miss details: spell archetype names with the exact ASCII hyphen
+when specified (for example, `Lotka-Volterra`, not `Lotka–Volterra`), and
+commit the matching report file for every case or CI fails. `must_contain` and
+numeric-oracle `keyword` strings can use `|` to specify alternatives; each
+alternative is matched literally.
+
 ## Style
 
 - Markdown for docs; Python 3.9+ stdlib + numpy/scipy only.
