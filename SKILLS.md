@@ -1,4 +1,4 @@
-# Skills index — axiomize-quantum-skills
+# Skills index — axiomize-quantum-skills-2.0
 
 Two model-facing skills ship in this repo. Both are plain Markdown protocols;
 the engine exposes deterministic reference implementations under `src/axiomize/`.
