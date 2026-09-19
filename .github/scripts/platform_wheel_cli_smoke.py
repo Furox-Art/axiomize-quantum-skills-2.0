@@ -157,14 +157,14 @@ def _smoke_cli(work: Path) -> None:
 def _verify_installed_import(work: Path) -> None:
     code = (
         "import axiomize, importlib.metadata as m, pathlib; "
-        "print(m.version('axiomize')); "
+        "print(m.version('axiomize-quantum-skills')); "
         "print(pathlib.Path(axiomize.__file__).resolve())"
     )
     proc = _run([sys.executable, "-c", code], cwd=work, timeout=60)
     lines = [line.strip() for line in proc.stdout.splitlines() if line.strip()]
     if not lines:
         raise SmokeFailure("installed package import check produced no output")
-    if lines[0] != metadata.version("axiomize"):
+    if lines[0] != metadata.version("axiomize-quantum-skills"):
         raise SmokeFailure("runtime/importlib metadata version mismatch")
 
 

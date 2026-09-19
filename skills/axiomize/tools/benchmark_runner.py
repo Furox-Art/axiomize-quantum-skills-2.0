@@ -155,7 +155,9 @@ def grade(text, case):
         tol = float(oracle["tolerance"])
         if not (math.isfinite(expected) and math.isfinite(tol) and tol >= 0):
             raise ValueError("numeric oracle expected/tolerance must be finite and tolerance non-negative")
-        match = re.search(rf"{re.escape(kw)}[^0-9\n]{{0,128}}([0-9]*\.?[0-9]+)", text, re.IGNORECASE)
+        # keyword may hold ``a|b`` alternatives; escape each literal, not the ``|``.
+        kw_pattern = "|".join(re.escape(part) for part in kw.split("|"))
+        match = re.search(rf"(?:{kw_pattern})[^0-9\n]{{0,128}}([0-9]*\.?[0-9]+)", text, re.IGNORECASE)
         ok = bool(match and abs(float(match.group(1)) - expected) <= tol)
         checks[f"numeric oracle {kw} ~ {expected} ±{tol}"] = ok
 
