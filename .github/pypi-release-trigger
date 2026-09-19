@@ -1,2 +1,2 @@
 axiomize-quantum-skills 2.1.0
-attempt 2
+attempt 3 (CI fixed: wheel glob + distribution name)
