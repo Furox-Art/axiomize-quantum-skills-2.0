@@ -173,3 +173,75 @@ class TestCausalReference:
         ols_effect = float(b[1])
         assert result["causal_effect"]["estimate"] == pytest.approx(ols_effect, abs=0.5)
         assert result["causal_effect"]["estimate"] == pytest.approx(3.0, abs=0.5)
+
+
+# ---------------------------------------------------------------------------
+# External reference comparisons (statsmodels)
+# ---------------------------------------------------------------------------
+
+class TestCausalExternalReference:
+    """Causal estimators should agree with statsmodels reference implementations,
+    not only with internal manual oracles."""
+
+    @staticmethod
+    def _synthetic_iv_cohort(seed: int = 11, n: int = 800) -> dict[str, list[float]]:
+        """Z (instrument) -> T (treatment) -> Y, U confounds T and Y."""
+        rng = np.random.default_rng(seed)
+        z = rng.normal(size=n)
+        u = rng.normal(size=n)
+        t = 0.9 * z + u + rng.normal(scale=0.5, size=n)
+        y = 2.0 * t + u + rng.normal(scale=0.5, size=n)
+        return {"z": z.tolist(), "t": t.tolist(), "y": y.tolist()}
+
+    def test_iv_2sls_matches_statsmodels_reference(self) -> None:
+        from statsmodels.sandbox.regression.gmm import IV2SLS
+
+        data = self._synthetic_iv_cohort()
+        model = _model({
+            "name": "iv_ext_ref", "family": "causal",
+            "variables": [{"name": "y", "role": "output", "initial": 0.0}], "parameters": [],
+            "equations": [{"target": "y", "expression": "0", "kind": "causal"}],
+            "metadata": {"causal": {
+                "treatment": "t", "outcome": "y",
+                "data": data,
+                "identification": {"method": "iv", "instrument": "z"}}}
+        })
+        result = simulate_model(model)
+        t = np.asarray(data["t"], dtype=float)
+        z = np.asarray(data["z"], dtype=float)
+        y = np.asarray(data["y"], dtype=float)
+        ref = IV2SLS(y, np.column_stack([np.ones_like(t), t]),
+                     np.column_stack([np.ones_like(t), z])).fit()
+        ref_est = float(ref.params[1])
+        assert result["causal_effect"]["estimate"] == pytest.approx(ref_est, rel=1e-6, abs=1e-8)
+        # The estimand should also recover the structural slope of the cohort.
+        assert result["causal_effect"]["estimate"] == pytest.approx(2.0, abs=0.2)
+
+    def test_backdoor_ols_matches_statsmodels_hc1(self) -> None:
+        import statsmodels.api as sm
+
+        rng = np.random.default_rng(23)
+        n = 600
+        x = rng.normal(size=n)
+        t = 0.7 * x + rng.normal(scale=0.8, size=n)
+        y = 1.5 * t - 0.8 * x + rng.normal(scale=0.6, size=n)
+        model = _model({
+            "name": "bd_ext_ref", "family": "causal",
+            "variables": [{"name": "y", "role": "output", "initial": 0.0}], "parameters": [],
+            "equations": [{"target": "y", "expression": "0", "kind": "causal"}],
+            "metadata": {"causal": {
+                "treatment": "t", "outcome": "y",
+                "data": {"x": x.tolist(), "t": t.tolist(), "y": y.tolist()},
+                "identification": {
+                    "method": "backdoor",
+                    "adjustment_set": ["x"],
+                    "assumptions": ["exchangeability given measured covariates",
+                                    "positivity", "consistency"],
+                }}}
+        })
+        result = simulate_model(model)
+        X = np.column_stack([np.ones(n), t, x])
+        ref = sm.OLS(y, X).fit(cov_type="HC1")
+        assert result["causal_effect"]["estimate"] == pytest.approx(float(ref.params[1]), rel=1e-6, abs=1e-8)
+        assert result["causal_effect"]["std_error"] == pytest.approx(float(ref.bse[1]), rel=1e-4)
+        assert result["causal_effect"]["estimate"] == pytest.approx(1.5, abs=0.2)
