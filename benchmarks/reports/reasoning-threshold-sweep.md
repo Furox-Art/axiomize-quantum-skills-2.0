@@ -1,6 +1,6 @@
 # Collapse-threshold sweep (paired calibration evidence)
 
-Paired sweep of `collapse_score` (seed 20260927, 400 episodes per cell per grid point; same episodes and same observation tapes for every threshold). Reference default: 0.78. All other thresholds unchanged.
+Paired sweep of `collapse_score` (seed 20260927, 400 episodes per cell per grid point; same episodes and same observation tapes for every threshold). Reference default: 0.65. All other thresholds unchanged.
 
 ## Difficulty: easy
 

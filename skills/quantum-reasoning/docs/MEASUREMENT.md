@@ -80,7 +80,11 @@ This is a compute-allocation recommendation, not a requirement to generate the m
 
 The reference controller permits collapse only when all applicable checks pass:
 
-1. leader score `>= 0.78`
+1. leader score `>= 0.65` (calibrated by the paired threshold sweep in
+   `benchmarks/reports/reasoning-threshold-sweep.md`: the former 0.78 reference
+   never fired under bounded noisy evidence, while 0.65 fires early in clear
+   regimes with zero premature-wrong collapses; the verification, margin and
+   contradiction checks below carry the actual safety guarantee)
 2. leader verification `>= 0.75`
 3. leader contradiction `<= 0.15`
 4. if a runner-up exists, leader margin `>= 0.12`
