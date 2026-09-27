@@ -1,6 +1,6 @@
 {
   "description": "Standard test ideas for skill-quality regression. Each entry: the prompt an agent receives, and properties a compliant report MUST exhibit. Scoring: see rubric.md.",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "cases": [
     {
       "id": "epidemic-threshold",
@@ -125,6 +125,48 @@
       "expected_archetype": "confounding bias",
       "min_lenses_built": 2,
       "must_reject_at_least_one": false
+    },
+    {
+      "id": "physics-oscillator-ringdown",
+      "prompt": "Model this idea mathematically: after a crowd leaves a footbridge, the deck keeps wobbling with a 2 s period and each swing's amplitude halves every 10 s; how quickly do the wobbles die and how much damping would shorten that?",
+      "must_contain": ["damped|damping|second-order", "natural frequency|period|eigen", "logarithmic decrement|decay rate|quality factor", "sensitivity|parameter"],
+      "expected_archetype": "damped harmonic oscillator",
+      "min_lenses_built": 2,
+      "must_reject_at_least_one": true,
+      "numeric_oracle": {"keyword": "decay rate|damping rate|gamma|attenuation", "expected": 0.069, "tolerance": 0.02}
+    },
+    {
+      "id": "biology-drug-dosing",
+      "prompt": "Model this idea mathematically: after a pill, the drug level in blood jumps to 40 mg/L and halves every 6 hours; the drug stops working below 5 mg/L and becomes harmful above 60 mg/L - when should the next dose come?",
+      "must_contain": ["half-life|elimination|exponential", "compartment", "therapeutic window|minimum effective|toxic", "interval|schedule|dose"],
+      "expected_archetype": "one-compartment pharmacokinetics",
+      "min_lenses_built": 2,
+      "must_reject_at_least_one": true
+    },
+    {
+      "id": "chemistry-catalyst-deactivation",
+      "prompt": "Model this idea mathematically: a reactor catalyst loses about 5 percent of its activity every month, and below 60 percent activity the product spec fails; when should the plant replace or regenerate the catalyst?",
+      "must_contain": ["deactivat|activity decay|fouling", "exponential|first-order|decay", "threshold|specification|constraint", "replacement|regeneration|schedule|optimal"],
+      "expected_archetype": "catalyst deactivation kinetics",
+      "min_lenses_built": 2,
+      "must_reject_at_least_one": true
+    },
+    {
+      "id": "operations-airline-overbooking",
+      "prompt": "Model this idea mathematically: an airline sells 205 tickets for a 200-seat plane and each passenger independently shows up with probability 0.95; how many passengers show up on average and what is the overbooking risk?",
+      "must_contain": ["binomial|no-show|show-up", "expected value|expectation|mean", "newsvendor|critical fractile|service level|oversale", "denied boarding|bump|overbooking risk"],
+      "expected_archetype": "binomial overbooking / newsvendor",
+      "min_lenses_built": 2,
+      "must_reject_at_least_one": true,
+      "numeric_oracle": {"keyword": "expected show-ups|expected passengers showing|mean show-ups", "expected": 194.75, "tolerance": 1.0}
+    },
+    {
+      "id": "causal-training-productivity",
+      "prompt": "Model this idea mathematically: employees who enjoyed math at school volunteered for our analytics training, and their productivity rose; did the training cause the gain?",
+      "must_contain": ["selection bias|self-selection|confound", "counterfactual|potential outcome|control group", "propensity|matching|IPW|difference-in-differences|DAG|backdoor", "assumption|identif"],
+      "expected_archetype": "program evaluation under selection bias",
+      "min_lenses_built": 2,
+      "must_reject_at_least_one": true
     }
   ]
 }
