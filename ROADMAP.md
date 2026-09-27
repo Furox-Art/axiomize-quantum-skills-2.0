@@ -61,10 +61,10 @@ Axiomize has moved from a prompt/skill-only project into a versioned scientific 
 ## Next evidence/maturity work
 
 - [ ] broaden independent end-to-end benchmark corpora across physics, biology, chemistry, operations and causal datasets
-- [ ] compare selected numerical results against external reference implementations, not only internal regression oracles
+- [ ] compare selected numerical results against external reference implementations, not only internal regression oracles (first external references landed: causal IV/2SLS and backdoor-OLS estimators vs statsmodels in `tests/test_numerical_reference.py`)
 - [ ] add optional full schema/tool validation for CellML/Modelica where ecosystem validators are available
 - [ ] broaden FEM problem classes beyond bounded scalar Poisson while preserving structured/non-executable input contracts
-- [ ] broaden causal identification beyond backdoor/randomized studies (front-door, IV and longitudinal designs only when identification can be made explicit)
+- [x] broaden causal identification beyond backdoor/randomized studies: explicit front-door adjustment, IV/2SLS and longitudinal MSM with surfaced identification assumptions (`causal_engine.py`; covered by `tests/test_scientific_upgrade_112.py` and `tests/test_numerical_reference.py`, including statsmodels external-reference comparisons)
 - [ ] add richer Bayesian likelihood families and gradient-based optional samplers while retaining package-native fallback and diagnostics
 - [ ] collect independent-user reliability/performance evidence before declaring production/stable status
 
