@@ -36,6 +36,7 @@ from axiomize.reasoning.branch_controller import (
     Branch,
     BranchMetrics,
     BranchState,
+    Thresholds,
     collapse_decision,
     update_branch_state,
 )
@@ -92,6 +93,20 @@ def _episode_signals(rng: np.random.Generator, difficulty: str) -> _Signals:
         qualities[truth] = _SHIFT[0]
         shift_round = 5  # surges at round 5 of 8
     return _Signals(qualities=qualities, truth=truth, shift_round=shift_round)
+
+
+def _episode_tape(rng: np.random.Generator, k: int) -> np.ndarray:
+    """Pre-rolled observation noise: tape[i][r-1] is the noise draw for
+    hypothesis i in round r. Threshold sweeps reuse one tape per episode so
+    every candidate threshold sees bit-identical evidence (paired design)."""
+    return rng.normal(0.0, _SIGMA, size=(k, _MAX_ROUNDS))
+
+
+def _observe_tape(signals: _Signals, tape: np.ndarray, i: int, round_no: int) -> float:
+    q = signals.qualities[i]
+    if signals.shift_round and i == signals.truth and round_no >= signals.shift_round:
+        q = _SHIFT[1]
+    return float(np.clip(q + tape[i][round_no - 1], 0.0, 1.0))
 
 
 def _contradiction(evidence: float, leader_evidence: float) -> float:
@@ -154,8 +169,15 @@ def _run_beam_top2(rng: np.random.Generator, signals: _Signals) -> Outcome:
     )
 
 
-def _run_branch_controller(rng: np.random.Generator, signals: _Signals) -> Outcome:
+def _run_branch_controller(
+    rng: np.random.Generator,
+    signals: _Signals,
+    thresholds: Thresholds = DEFAULT_THRESHOLDS,
+    tape: np.ndarray | None = None,
+) -> Outcome:
     k = signals.qualities.size
+    if tape is None:
+        tape = _episode_tape(rng, k)
     evidence = np.zeros(k)
     n_obs = np.zeros(k, dtype=int)
     branches = [
@@ -177,7 +199,7 @@ def _run_branch_controller(rng: np.random.Generator, signals: _Signals) -> Outco
                 or (branch.state is BranchState.DORMANT and round_no % _PROBE_PERIOD == 0)
             )
             if observable:
-                obs = signals.observe(rng, i, round_no)
+                obs = _observe_tape(signals, tape, i, round_no)
                 evidence[i] = (1 - _EMA_ALPHA) * evidence[i] + _EMA_ALPHA * obs
                 n_obs[i] += 1
                 cost += 1.0
@@ -189,7 +211,7 @@ def _run_branch_controller(rng: np.random.Generator, signals: _Signals) -> Outco
                 state=branch.state,
                 previous_metrics=branch.metrics,
             )
-            revived = update_branch_state(updated)
+            revived = update_branch_state(updated, thresholds)
             if (
                 branch.state is BranchState.DORMANT
                 and revived.state is BranchState.ACTIVE
@@ -198,7 +220,7 @@ def _run_branch_controller(rng: np.random.Generator, signals: _Signals) -> Outco
             new_branches.append(revived)
         branches = new_branches
         if round_no >= _MIN_COLLAPSE_ROUND:
-            can_collapse, _, leader = collapse_decision(branches)
+            can_collapse, _, leader = collapse_decision(branches, thresholds)
             if can_collapse and leader is not None:
                 answer = int(leader.branch_id[1:])
                 early_commit = True
@@ -306,24 +328,131 @@ def render_report(results: dict) -> str:
     return "\n".join(lines) + "\n"
 
 
+_SWEEP_GRID = (0.60, 0.65, 0.70, 0.72, 0.75, 0.78)
+
+
+def sweep_collapse_thresholds(
+    seed: int = 20260927,
+    trials: int = 300,
+    grid: tuple[float, ...] = _SWEEP_GRID,
+) -> dict:
+    """Paired sweep of ``collapse_score``: every candidate threshold sees
+    bit-identical episodes and observation tapes, so differences in the table
+    come only from the threshold itself."""
+    from dataclasses import replace
+
+    rng = np.random.default_rng(seed)
+    default = DEFAULT_THRESHOLDS.collapse_score
+    table: dict = {}
+    for difficulty in _DIFFICULTY:
+        per_score: dict = {score: [] for score in grid}
+        for _ in range(trials):
+            signals = _episode_signals(rng, difficulty)
+            tape = _episode_tape(rng, signals.qualities.size)
+            for score in grid:
+                thresholds = replace(DEFAULT_THRESHOLDS, collapse_score=score)
+                per_score[score].append(
+                    _run_branch_controller(rng, signals, thresholds, tape)
+                )
+        table[difficulty] = {}
+        for score in grid:
+            outcomes = per_score[score]
+            table[difficulty][f"{score:.2f}"] = {
+                "accuracy": float(np.mean([o.correct for o in outcomes])),
+                "collapse_rate": float(np.mean([o.early_commit for o in outcomes])),
+                "premature_wrong_rate": float(np.mean([o.wrong_commit for o in outcomes])),
+                "mean_rounds": float(np.mean([o.rounds for o in outcomes])),
+                "mean_branch_cost": float(np.mean([o.cost for o in outcomes])),
+            }
+    return {
+        "seed": seed,
+        "trials_per_cell": trials,
+        "grid": [f"{g:.2f}" for g in grid],
+        "default": f"{default:.2f}",
+        "table": table,
+    }
+
+
+def recommend_threshold(sweep: dict) -> tuple[float, str]:
+    """Safety-first selection: among grid points whose hard-regime
+    premature-wrong rate stays at zero and whose hard accuracy is within one
+    point of the reference default, pick the threshold with the earliest safe
+    exits (lowest easy-regime mean rounds)."""
+    hard = sweep["table"]["hard"]
+    easy = sweep["table"]["easy"]
+    default_key = sweep["default"]
+    ref_accuracy = hard[default_key]["accuracy"]
+    candidates = []
+    for key in sweep["grid"]:
+        row = hard[key]
+        if row["premature_wrong_rate"] <= 0.01 and row["accuracy"] >= ref_accuracy - 0.01:
+            candidates.append((easy[key]["mean_rounds"], float(key)))
+    if not candidates:
+        return DEFAULT_THRESHOLDS.collapse_score, "no grid member met the safety gate; keep the reference default"
+    rounds, best = min(candidates)
+    return best, f"earliest safe exits (easy-regime mean rounds {rounds:.2f}) with zero hard-regime premature collapses"
+
+
+def render_sweep_report(sweep: dict) -> str:
+    best, why = recommend_threshold(sweep)
+    lines = [
+        "# Collapse-threshold sweep (paired calibration evidence)",
+        "",
+        f"Paired sweep of `collapse_score` (seed {sweep['seed']}, "
+        f"{sweep['trials_per_cell']} episodes per cell per grid point; same episodes and "
+        "same observation tapes for every threshold). Reference default: "
+        f"{sweep['default']}. All other thresholds unchanged.",
+        "",
+    ]
+    for difficulty, rows in sweep["table"].items():
+        lines.append(f"## Difficulty: {difficulty}")
+        lines.append("")
+        lines.append("| collapse_score | Accuracy | Collapse rate | Premature-wrong | Mean rounds | Mean cost |")
+        lines.append("|---|---|---|---|---|---|")
+        for key, stats in rows.items():
+            lines.append(
+                f"| {key} | {stats['accuracy']:.3f} | {stats['collapse_rate']:.3f} "
+                f"| {stats['premature_wrong_rate']:.3f} | {stats['mean_rounds']:.2f} "
+                f"| {stats['mean_branch_cost']:.1f} |"
+            )
+        lines.append("")
+    lines += [
+        "## Selection",
+        "",
+        f"Recommended measured candidate: **{best:.2f}** ({why}).",
+        "",
+        "Production defaults are intentionally unchanged in this change: the sweep is "
+        "evidence for calibration, and the semantics of `DEFAULT_THRESHOLDS` stay under "
+        "explicit project control.",
+    ]
+    return "\n".join(lines) + "\n"
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--seed", type=int, default=20260927)
     parser.add_argument("--trials", type=int, default=400)
+    parser.add_argument("--mode", choices=["reference", "sweep"], default="reference")
     parser.add_argument("--json-out", default=None, help="optional path for raw results JSON")
     parser.add_argument(
         "--report-out",
-        default=str(
-            Path(__file__).resolve().parents[3]
-            / "benchmarks"
-            / "reports"
-            / "reasoning-ablation.md"
-        ),
-        help="markdown report destination",
+        default=None,
+        help="markdown report destination (default: benchmarks/reports/<mode file>)",
     )
     args = parser.parse_args()
-    results = run_ablation(seed=args.seed, trials=args.trials)
-    report = render_report(results)
+    repo_root = Path(__file__).resolve().parents[3]
+    reports = repo_root / "benchmarks" / "reports"
+    if args.report_out is None:
+        name = "reasoning-ablation.md" if args.mode == "reference" else "reasoning-threshold-sweep.md"
+        args.report_out = str(reports / name)
+    if args.mode == "reference":
+        results = run_ablation(seed=args.seed, trials=args.trials)
+        report = render_report(results)
+    else:
+        results = sweep_collapse_thresholds(seed=args.seed, trials=args.trials)
+        report = render_sweep_report(results)
+        best, why = recommend_threshold(results)
+        print(f"sweep recommendation: collapse_score={best:.2f} ({why})")
     out = Path(args.report_out)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(report, encoding="utf-8")
