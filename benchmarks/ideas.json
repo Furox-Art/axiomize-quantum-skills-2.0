@@ -154,11 +154,11 @@
     {
       "id": "operations-airline-overbooking",
       "prompt": "Model this idea mathematically: an airline sells 205 tickets for a 200-seat plane and each passenger independently shows up with probability 0.95; how many passengers show up on average and what is the overbooking risk?",
-      "must_contain": ["binomial|no-show|show-up", "expected value|expectation|mean", "newsvendor|critical fractile|service level|oversale", "probability.*(exceed|over|bump)|risk"],
+      "must_contain": ["binomial|no-show|show-up", "expected value|expectation|mean", "newsvendor|critical fractile|service level|oversale", "denied boarding|bump|overbooking risk"],
       "expected_archetype": "binomial overbooking / newsvendor",
       "min_lenses_built": 2,
       "must_reject_at_least_one": true,
-      "numeric_oracle": {"keyword": "expected.*(show|arrive|passenger)|mean.*(show|passenger)", "expected": 194.75, "tolerance": 1.0}
+      "numeric_oracle": {"keyword": "expected show-ups|expected passengers showing|mean show-ups", "expected": 194.75, "tolerance": 1.0}
     },
     {
       "id": "causal-training-productivity",
