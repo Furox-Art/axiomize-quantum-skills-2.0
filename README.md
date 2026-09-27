@@ -3,6 +3,8 @@
 ![License](https://img.shields.io/badge/license-MIT-blue)
 ![Python](https://img.shields.io/badge/python-3.10%2B-informational)
 ![CI](https://github.com/Furox-Art/axiomize-quantum-skills-2.0/actions/workflows/ci.yml/badge.svg)
+[![PyPI](https://img.shields.io/pypi/v/axiomize-quantum-skills-2.0)](https://pypi.org/project/axiomize-quantum-skills-2.0/)
+[![Downloads](https://img.shields.io/pypi/dm/axiomize-quantum-skills-2.0)](https://pypi.org/project/axiomize-quantum-skills-2.0/)
 
 **Axiomize 2.0: a versioned scientific modeling engine with quantum-inspired multi-branch reasoning and deterministic Model IR selection.**
 
