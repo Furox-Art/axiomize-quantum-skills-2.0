@@ -5,9 +5,17 @@ import pytest
 
 from axiomize.reasoning.ablation import (
     _episode_signals,
-    run_ablation,
+    recommend_threshold,
     render_report,
+    render_sweep_report,
+    run_ablation,
+    sweep_collapse_thresholds,
 )
+
+
+@pytest.fixture(scope="module")
+def sweep() -> dict:
+    return sweep_collapse_thresholds(seed=20260927, trials=60)
 
 
 @pytest.fixture(scope="module")
@@ -105,3 +113,37 @@ def test_render_report_contains_tables_and_headline(results: dict) -> None:
         assert token in report
     # every accuracy figure rendered with three decimals
     assert report.count("| cell") == 0  # sanity: no placeholders leaked
+
+
+class TestThresholdSweep:
+    def test_sweep_is_deterministic(self) -> None:
+        first = sweep_collapse_thresholds(seed=11, trials=20)
+        second = sweep_collapse_thresholds(seed=11, trials=20)
+        assert first == second
+
+    def test_reference_default_never_collapses_under_noise(self, sweep: dict) -> None:
+        # The shipped 0.78 default must show zero collapses in this environment:
+        # this is the calibration gap the sweep exists to document.
+        for difficulty in sweep["table"].values():
+            assert difficulty[sweep["default"]]["collapse_rate"] == 0.0
+
+    def test_lower_thresholds_unlock_collapse_without_wrong_commits(self, sweep: dict) -> None:
+        easy = sweep["table"]["easy"]
+        assert easy["0.60"]["collapse_rate"] > easy["0.78"]["collapse_rate"]
+        # paired design: same tapes, so any safe threshold keeps easy accuracy perfect
+        assert easy["0.60"]["accuracy"] == 1.0
+        hard = sweep["table"]["hard"]
+        assert hard["0.60"]["premature_wrong_rate"] == 0.0
+
+    def test_recommendation_is_safe_and_from_grid(self, sweep: dict) -> None:
+        best, why = recommend_threshold(sweep)
+        assert f"{best:.2f}" in sweep["grid"]
+        assert "safe" in why or "reference default" in why
+        hard = sweep["table"]["hard"][f"{best:.2f}"]
+        assert hard["premature_wrong_rate"] <= 0.01
+
+    def test_render_sweep_report(self, sweep: dict) -> None:
+        report = render_sweep_report(sweep)
+        for token in ("collapse_score", "Difficulty: hard", "Recommended measured candidate",
+                      "Production defaults are intentionally unchanged"):
+            assert token in report
