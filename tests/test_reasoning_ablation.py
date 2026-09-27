@@ -74,14 +74,14 @@ def test_revivals_actually_happen(results: dict) -> None:
     assert total_revivals > 0
 
 
-def test_reference_defaults_do_not_collapse_under_bounded_noise(results: dict) -> None:
-    # Calibration evidence: with the shipped reference thresholds, the collapse
-    # contract is practically unreachable under bounded noisy evidence. This
-    # pins the finding so recalibration work has a measurable target.
-    for cell in results["cells"].values():
-        ctrl = cell["policies"]["branch_controller"]
-        assert ctrl["early_commit_rate"] <= 0.01
-        assert ctrl["accuracy"] >= 0.95 if cell is results["cells"]["easy"] else True
+def test_calibrated_default_collapses_early_and_correct_in_easy(results: dict) -> None:
+    # Since 1.1 the shipped default (0.65) is calibrated to fire early in clear
+    # regimes; the historical 0.78 dead-zone pin lives in TestThresholdSweep.
+    easy = results["cells"]["easy"]["policies"]["branch_controller"]
+    assert easy["early_commit_rate"] > 0.5
+    assert easy["premature_wrong_rate"] == 0.0
+    assert easy["accuracy"] >= 0.95
+    assert easy["mean_rounds_to_decision"] < results["max_rounds"]
 
 
 def test_episode_signals_put_quality_on_truth() -> None:
@@ -121,11 +121,21 @@ class TestThresholdSweep:
         second = sweep_collapse_thresholds(seed=11, trials=20)
         assert first == second
 
-    def test_reference_default_never_collapses_under_noise(self, sweep: dict) -> None:
-        # The shipped 0.78 default must show zero collapses in this environment:
-        # this is the calibration gap the sweep exists to document.
+    def test_former_default_never_collapses_under_noise(self, sweep: dict) -> None:
+        # Calibration-gap evidence pin: the pre-1.1 default (0.78) shows zero
+        # collapses in every regime of this environment.
         for difficulty in sweep["table"].values():
-            assert difficulty[sweep["default"]]["collapse_rate"] == 0.0
+            assert difficulty["0.78"]["collapse_rate"] == 0.0
+
+    def test_calibrated_default_collapses_early_and_safely(self, sweep: dict) -> None:
+        # The calibrated 1.1 default (0.65) must actually fire in the easy
+        # regime while keeping premature-wrong collapses at zero.
+        current = sweep["default"]
+        assert current == "0.65"
+        easy = sweep["table"]["easy"][current]
+        assert easy["collapse_rate"] > 0.5
+        for difficulty in sweep["table"].values():
+            assert difficulty[current]["premature_wrong_rate"] == 0.0
 
     def test_lower_thresholds_unlock_collapse_without_wrong_commits(self, sweep: dict) -> None:
         easy = sweep["table"]["easy"]

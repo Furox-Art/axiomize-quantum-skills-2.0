@@ -50,7 +50,12 @@ class Branch:
 
 @dataclass(frozen=True)
 class Thresholds:
-    collapse_score: float = 0.78
+    # Calibrated by the paired offline sweep in
+    # benchmarks/reports/reasoning-threshold-sweep.md (PR #15): the previous
+    # 0.78 reference value practically never collapsed under bounded noisy
+    # evidence, while 0.60-0.65 collapse early with zero premature-wrongness.
+    # 0.65 is the conservative pick inside the measured safe band.
+    collapse_score: float = 0.65
     collapse_verification: float = 0.75
     collapse_max_contradiction: float = 0.15
     collapse_margin: float = 0.12

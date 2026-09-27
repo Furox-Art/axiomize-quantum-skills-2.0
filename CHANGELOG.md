@@ -2,6 +2,33 @@
 
 All notable changes to Axiomize are documented here. Axiomize follows semantic versioning; release claims are tied to exact-wheel CI/release evidence.
 
+## [1.1.0] - 2026-09-27
+
+### Changed
+
+- calibrated the reasoning branch-controller default `collapse_score` from 0.78 to 0.65 using
+  paired-sweep evidence (`benchmarks/reports/reasoning-threshold-sweep.md`): the 0.78 reference
+  never fired under bounded noisy evidence, while 0.65 fires early in clear regimes with zero
+  premature-wrong collapses; verification/margin/contradiction guards are unchanged
+- `skills/quantum-reasoning/docs/MEASUREMENT.md` documents the calibrated threshold and its evidence
+
+### Added
+
+- offline ablation harness `axiomize.reasoning.ablation` comparing the branch controller against
+  argmax-commit and top-2 beam baselines on deterministic ground-truth episodes, including
+  regime-shift cases; report: `benchmarks/reports/reasoning-ablation.md`
+- paired collapse-threshold sweep + safety-first `recommend_threshold` selector; report:
+  `benchmarks/reports/reasoning-threshold-sweep.md`
+- benchmark corpus broadened to 20 cases (physics/biology/chemistry/operations/causal) with
+  stored blind-test reports for every case
+- causal estimators now carry external-reference checks against statsmodels (IV/2SLS, HC1 OLS)
+- community regression tests for numeric-oracle keyword alternatives (PR #11)
+- README PyPI version/downloads badges
+
+### Housekeeping
+
+- CI action pins bumped (upload-artifact 7.0.1, download-artifact 8.0.1 via Dependabot)
+
 ## [1.0.0] - 2026-09-19
 
 ### First independent release
