@@ -21,6 +21,14 @@ Most AI tools give you one answer and move on. This one keeps multiple hypothese
   
 Together they let you build models where the reasoning process is as rigorous as the math.  
   
+## Common use cases
+
+- Explore several competing **mathematical models** before committing to one formulation.
+- Combine **multi-branch AI reasoning** with parameter estimation, sensitivity analysis, and uncertainty quantification.
+- Compare hypotheses using quantitative evidence instead of selecting the first plausible answer.
+- Build reproducible scientific workflows that preserve both the **reasoning trace and mathematical model**.
+- Apply quantum-inspired branch exploration to scientific modeling, model selection, planning, and decision support.
+
 ## Quick start  
   
 ```bash  

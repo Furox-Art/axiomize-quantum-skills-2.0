@@ -1,15 +1,28 @@
-# Axiomize
+# Axiomize Quantum Skills 2.0
 
-**Turn any idea into a rigorous mathematical model** — an adaptive agent skill and scientific engine for Claude Code, opencode, Cursor and other compatible agents.
+**Axiomize Quantum Skills 2.0** combines rigorous scientific modeling with
+quantum-inspired multi-branch reasoning for AI agents.
 
-Axiomize now starts by clarifying missing mechanisms in plain language, recommends **weak / medium / strong** depth, builds multiple candidate models, compares when each model is appropriate, validates with scientific tools, reports uncertainty and falsifiers, and records reproducible runs.
+It is designed for problems where both the mathematical formulation and the
+reasoning path matter: **model selection**, **parameter estimation**,
+**sensitivity analysis**, **uncertainty quantification**, **Bayesian and causal
+reasoning**, hypothesis comparison, and reproducible scientific workflows.
 
-Extra agents, full alternative-method reruns and extra paid/provider calls are **user-controlled** rather than silently spawned.
+The modeling layer makes assumptions, equations, parameters, units, validation,
+and exports explicit. The reasoning layer keeps multiple candidate approaches
+alive, scores them against evidence, prunes weak branches, and merges or
+collapses only when the evidence supports doing so.
 
-- Install: copy `skills/axiomize/` into `~/.config/opencode/skills/` or `~/.claude/skills/`
-- Ask: *"Model this idea mathematically: ..."*
-- CLI intake: `axiomize intake "your idea"`
-- Inspect policy: `axiomize policy`
-- Full documentation lives in the [GitHub repository](https://github.com/Furox-Art/axiomize)
+## Quick start
 
-![SIR demo](sir-demo.gif)
+```bash
+pip install axiomize-quantum-skills-2.0
+# or
+npx axiomize-quantum
+```
+
+Use this package when a task benefits from both **mathematical modeling** and
+**multi-branch reasoning** rather than a single first-pass answer.
+
+- [GitHub repository](https://github.com/Furox-Art/axiomize-quantum-skills-2.0)
+- [PyPI package](https://pypi.org/project/axiomize-quantum-skills-2.0/)

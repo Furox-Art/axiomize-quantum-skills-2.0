@@ -1,6 +1,6 @@
-site_name: Axiomize
-site_description: Turn any idea into a rigorous mathematical model - an adaptive agent skill with multiple mathematical lenses.
-repo_url: https://github.com/Furox-Art/axiomize
+site_name: Axiomize Quantum Skills 2.0
+site_description: Scientific modeling plus quantum-inspired multi-branch reasoning for AI agents, model selection, parameter estimation, sensitivity analysis, uncertainty quantification, Bayesian and causal reasoning, and reproducible research.
+repo_url: https://github.com/Furox-Art/axiomize-quantum-skills-2.0
 theme:
   name: material
   palette:
