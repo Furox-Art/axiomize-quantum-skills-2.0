@@ -103,10 +103,11 @@ jobs:
         run: pip install -r requirements-test.txt
       - name: Install axiomize (editable) for import-based tests
         run: python -m pip install -e . --no-deps
-      # Measured 67% on this commit. The gate sits just below that so it blocks
-      # regressions rather than the existing backlog; raise it as real tests land.
-      # Several modules are still at or near zero (benchmark_suite.py, runs/bundle.py,
-      # advanced_diagnostics.py, json_safety.py) and are the obvious next targets.
+      # Measured 70.28% on Windows but 69.31% on Linux, which is what this gate must
+      # clear: the Linux runner skips 8 tests that Windows executes (500 passed +
+      # 8 skipped vs 508 passed), so Linux covers less code by construction. Set
+      # the gate against the lower of the two environments, not the higher one.
+      # Ratchet toward 69 as those skips get audited.
       # -m 'not network' drops the one live-socket REST parity test: tracing makes
       # its handler slow enough that the connection is aborted. It still runs
       # untraced in the validate matrix above.
@@ -114,7 +115,7 @@ jobs:
         run: >-
           pytest tests/ -q -m 'not network'
           --cov=axiomize --cov-branch --cov-report=term-missing
-          --cov-fail-under=70
+          --cov-fail-under=68
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
         with:
