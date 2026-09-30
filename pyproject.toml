@@ -105,3 +105,9 @@ module = ["casadi", "casadi.*"]
 follow_imports = "skip"
 ignore_missing_imports = true
 ignore_errors = true
+
+[tool.pytest.ini_options]
+markers = [
+  "slow: exercises a full model simulation; still run by CI, but slow enough to deselect locally",
+  "network: binds a real HTTP server on a real port and is unreliable under --cov tracing",
+]

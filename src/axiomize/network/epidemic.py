@@ -119,3 +119,64 @@ def sir_on_network(graph: Any, beta: float, gamma: float, I0: int,
         "steps": len(infected_curve) - 1,
         "heterogeneity_factor": heterogeneity_factor(graph),
     }
+
+
+def gillespie_sir_once(
+    beta: float,
+    gamma: float,
+    i0: int,
+    n: int,
+    t_max: float = 180.0,
+    rng: Any = None,
+) -> dict[str, Any]:
+    """One well-mixed stochastic SIR trajectory via Gillespie's direct method.
+
+    Package-native twin of ``gillespie_sir_once`` in
+    ``skills/axiomize/tools/validate.py``. That copy stays dependency-free so the
+    skill can run without the library installed; this one exists so shipped code
+    (``benchmark_suite``) can exercise a stochastic outbreak from an installed
+    wheel. ``extinct_early`` reports whether the outbreak died out without ever
+    growing past the seed count, which is the subcritical fade-out signal.
+    """
+    n = bounded_int(n, name="population size", minimum=1, maximum=MAX_NETWORK_NODES)
+    i0 = bounded_int(i0, name="seed infections", minimum=1, maximum=n)
+    beta = _probability(beta, name="transmission rate")
+    gamma = _probability(gamma, name="recovery rate")
+    try:
+        t_max = float(t_max)
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise ValueError("t_max must be numeric") from exc
+    if not math.isfinite(t_max) or t_max <= 0:
+        raise ValueError("t_max must be finite and positive")
+
+    generator = rng if rng is not None else np.random.default_rng()
+    susceptible, infected = n - i0, i0
+    t = 0.0
+    peak = i0
+    events = 0
+    # Each individual is infected at most once and recovers at most once, so a
+    # single realization can have at most 2N transitions.
+    event_limit = 2 * n
+    while infected > 0 and t < t_max:
+        if events >= event_limit:
+            raise RuntimeError("Gillespie event bound exceeded invariant 2*N")
+        rate_infection = beta * susceptible * (infected / n)
+        rate_recovery = gamma * infected
+        total = rate_infection + rate_recovery
+        if total <= 0:
+            break
+        t += float(generator.exponential(1.0 / total))
+        if generator.random() < rate_infection / total:
+            susceptible -= 1
+            infected += 1
+            peak = max(peak, infected)
+        else:
+            infected -= 1
+        events += 1
+    return {
+        "extinct_early": peak <= i0,
+        "peak_I": peak,
+        "final_R": n - susceptible,
+        "t_end": t,
+        "events": events,
+    }

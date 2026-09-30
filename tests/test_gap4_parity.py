@@ -29,6 +29,8 @@ import threading
 import urllib.request
 from contextlib import redirect_stdout
 
+import pytest
+
 PAR = {"beta": 0.3, "gamma": 0.1, "I0": 10.0, "N": 100000.0, "days": 180.0}
 
 
@@ -173,8 +175,15 @@ def test_mcp_uncertainty_calls_core_service():
     )
 
 
+@pytest.mark.network
 def test_rest_sensitivity_route_exists_live():
     """REST sensitivity endpointi core sensitivity_service'e bagli olmali.
+
+    Marks itself `network` because it binds a real HTTP server on a real port and
+    posts to it. Under `--cov` tracing the handler is slow enough that the socket
+    is aborted (WinError 10053) and the request surfaces as TimeoutError, so the
+    coverage job deselects this marker. It still runs untraced in the validate
+    matrix. TODO: make the request retry so the mark is not needed.
 
     GERCEK: rest_server.py'de /sensitivity rotasi yok (404); oysa
     sensitivity_service ve MCP sensitivity_analysis mevcut.

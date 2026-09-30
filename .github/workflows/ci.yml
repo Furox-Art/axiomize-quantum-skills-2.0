@@ -107,8 +107,14 @@ jobs:
       # regressions rather than the existing backlog; raise it as real tests land.
       # Several modules are still at or near zero (benchmark_suite.py, runs/bundle.py,
       # advanced_diagnostics.py, json_safety.py) and are the obvious next targets.
+      # -m 'not network' drops the one live-socket REST parity test: tracing makes
+      # its handler slow enough that the connection is aborted. It still runs
+      # untraced in the validate matrix above.
       - name: Branch coverage with a no-regression gate
-        run: pytest tests/ -q --cov=axiomize --cov-branch --cov-report=term-missing --cov-fail-under=65
+        run: >-
+          pytest tests/ -q -m 'not network'
+          --cov=axiomize --cov-branch --cov-report=term-missing
+          --cov-fail-under=70
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
         with:
