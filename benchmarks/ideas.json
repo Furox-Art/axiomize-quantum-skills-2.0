@@ -1,6 +1,6 @@
 {
   "description": "Standard test ideas for skill-quality regression. Each entry: the prompt an agent receives, and properties a compliant report MUST exhibit. Scoring: see rubric.md.",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "cases": [
     {
       "id": "epidemic-threshold",
@@ -167,6 +167,51 @@
       "expected_archetype": "program evaluation under selection bias",
       "min_lenses_built": 2,
       "must_reject_at_least_one": true
+    },
+    {
+      "id": "physics-rc-discharge",
+      "prompt": "Model this idea mathematically: a capacitor charged to 10 V discharges through a resistor with time constant 2 s. What voltage remains after exactly one time constant?",
+      "must_contain": ["exponential|RC|time constant", "e\\^|exp\\(|1/e", "voltage"],
+      "expected_archetype": "exponential RC discharge",
+      "min_lenses_built": 1,
+      "must_reject_at_least_one": false,
+      "numeric_oracle": {"keyword": "voltage|remaining", "expected": 3.6788, "tolerance": 0.02}
+    },
+    {
+      "id": "biology-doubling-culture",
+      "prompt": "Model this idea mathematically: a bacterial culture starts at 1000 cells and doubles every 3 hours. How many cells are there after 9 hours, with no resource limit?",
+      "must_contain": ["doubling|exponential", "generation|3 hours", "1000"],
+      "expected_archetype": "exponential bacterial growth",
+      "min_lenses_built": 1,
+      "must_reject_at_least_one": true,
+      "numeric_oracle": {"keyword": "cells|population|count", "expected": 8000, "tolerance": 1}
+    },
+    {
+      "id": "chemistry-first-order-half-life",
+      "prompt": "Model this idea mathematically: a compound disappears by first-order kinetics with rate constant 0.1 per hour. What is its half-life in hours?",
+      "must_contain": ["first-order|first order", "half-life|half life", "ln\\(2\\)|0.693"],
+      "expected_archetype": "first-order chemical half-life",
+      "min_lenses_built": 1,
+      "must_reject_at_least_one": false,
+      "numeric_oracle": {"keyword": "half-life|half life", "expected": 6.9315, "tolerance": 0.02}
+    },
+    {
+      "id": "operations-mm1-wait",
+      "prompt": "Model this idea mathematically: customers arrive at 4 per hour and one server finishes 5 per hour. What is the mean waiting time in the queue, in hours, not counting service?",
+      "must_contain": ["M/M/1|queue", "utilization|rho|arrival", "waiting time|Wq"],
+      "expected_archetype": "M/M/1 queue",
+      "min_lenses_built": 1,
+      "must_reject_at_least_one": true,
+      "numeric_oracle": {"keyword": "waiting time|Wq|queue time", "expected": 0.8, "tolerance": 0.02}
+    },
+    {
+      "id": "causal-randomized-ate",
+      "prompt": "Model this idea mathematically: a randomized trial assigns 200 patients to treatment and 200 to control. The treated average is 12 and the control average is 8. What is the average treatment effect?",
+      "must_contain": ["random", "average treatment|ATE|difference in means", "12|control"],
+      "expected_archetype": "randomized average treatment effect",
+      "min_lenses_built": 1,
+      "must_reject_at_least_one": false,
+      "numeric_oracle": {"keyword": "ATE|average treatment effect|difference", "expected": 4, "tolerance": 0.01}
     }
   ]
 }

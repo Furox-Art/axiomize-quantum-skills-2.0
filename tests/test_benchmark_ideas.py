@@ -45,5 +45,17 @@ def test_cases_cover_diverse_domains() -> None:
     assert "causal" in text or "confounding" in text, "no causal case"
 
 
+def test_closed_form_oracles_match_the_stated_model() -> None:
+    """The five v1.2.0 cases must agree with the formulas in their prompts."""
+    import math
+
+    cases = {c["id"]: c["numeric_oracle"] for c in _load_ideas()["cases"] if "numeric_oracle" in c}
+    assert cases["physics-rc-discharge"]["expected"] == pytest.approx(10.0 * math.exp(-1.0), abs=1e-4)
+    assert cases["biology-doubling-culture"]["expected"] == pytest.approx(1000 * 2 ** (9 / 3))
+    assert cases["chemistry-first-order-half-life"]["expected"] == pytest.approx(math.log(2) / 0.1, abs=1e-4)
+    assert cases["operations-mm1-wait"]["expected"] == pytest.approx(4.0 / (5.0 * (5.0 - 4.0)))
+    assert cases["causal-randomized-ate"]["expected"] == pytest.approx(12.0 - 8.0)
+
+
 def test_rubric_file_exists() -> None:
     assert (REPO / "benchmarks" / "rubric.md").exists()

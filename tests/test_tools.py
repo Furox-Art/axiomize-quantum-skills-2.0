@@ -199,4 +199,4 @@ class TestBenchmarkGate:
     def test_case_count_matches_expected(self, ideas_json):
         # CI runs exactly this many cases; if a case is silently dropped the
         # count shrinks and the regression goes unnoticed.
-        assert len(ideas_json["cases"]) == 20
+        assert len(ideas_json["cases"]) == 25
