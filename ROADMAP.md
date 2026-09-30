@@ -65,7 +65,7 @@ Axiomize has moved from a prompt/skill-only project into a versioned scientific 
 - [ ] add optional full schema/tool validation for CellML/Modelica where ecosystem validators are available
 - [ ] broaden FEM problem classes beyond bounded scalar Poisson while preserving structured/non-executable input contracts
 - [x] broaden causal identification beyond backdoor/randomized studies: explicit front-door adjustment, IV/2SLS and longitudinal MSM with surfaced identification assumptions (`causal_engine.py`; covered by `tests/test_scientific_upgrade_112.py` and `tests/test_numerical_reference.py`, including statsmodels external-reference comparisons)
-- [ ] add richer Bayesian likelihood families and gradient-based optional samplers while retaining package-native fallback and diagnostics
+- [ ] add richer Bayesian likelihood families and gradient-based optional samplers while retaining package-native fallback and diagnostics (landed: exponential and Student-t likelihoods checked against scipy.stats; optional MALA sampler with random-walk Metropolis fallback)
 - [ ] collect independent-user reliability/performance evidence before declaring production/stable status
 
 ## Non-goals

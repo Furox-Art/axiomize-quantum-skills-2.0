@@ -17,7 +17,7 @@ from typing import Any
 import numpy as np
 from scipy.special import gammaln
 
-SUPPORTED_FAMILIES = ("normal", "poisson", "bernoulli", "gamma")
+SUPPORTED_FAMILIES = ("normal", "poisson", "bernoulli", "gamma", "exponential", "student_t")
 
 
 def resolve_family(family: Any) -> str:
@@ -46,20 +46,25 @@ def log_likelihood(
     observed: np.ndarray,
     mean: np.ndarray,
     sigma: float | None = None,
+    df: float | None = None,
 ) -> float:
     """Total log-likelihood of *observed* under *family*.
 
     Parameters
     ----------
     family
-        Likelihood name ("normal", "poisson", "bernoulli", "gamma").
+        Likelihood name ("normal", "poisson", "bernoulli", "gamma",
+        "exponential", "student_t").
     observed
         1-D array of observations.
     mean
         Per-observation mean / rate / probability, same shape as *observed*.
     sigma
         Dispersion parameter for families that use it (``normal``, ``gamma``).
-        Ignored by ``poisson`` and ``bernoulli``.
+        Ignored by ``poisson``, ``bernoulli`` and ``exponential``.
+    df
+        Degrees of freedom for ``student_t``. Defaults to 4 when omitted.
+        Ignored by the other families.
     """
     fam = resolve_family(family)
     observed = np.asarray(observed, dtype=float)
@@ -88,6 +93,26 @@ def log_likelihood(
             np.sum(observed * np.log(p) + (1.0 - observed) * np.log(1.0 - p))
         )
 
+    if fam == "exponential":
+        if np.any(mean <= 0) or np.any(observed < 0):
+            return -math.inf
+        return float(np.sum(-np.log(mean) - observed / mean))
+
+    if fam == "student_t":
+        if sigma is None or sigma <= 0 or not math.isfinite(sigma):
+            return -math.inf
+        nu = 4.0 if df is None else float(df)
+        if nu <= 0 or not math.isfinite(nu):
+            return -math.inf
+        z = (observed - mean) / sigma
+        log_norm = (
+            gammaln((nu + 1.0) / 2.0)
+            - gammaln(nu / 2.0)
+            - 0.5 * math.log(nu * math.pi)
+            - math.log(sigma)
+        )
+        return float(np.sum(log_norm - ((nu + 1.0) / 2.0) * np.log1p(z * z / nu)))
+
     # gamma
     if sigma is None or sigma <= 0 or not math.isfinite(sigma):
         return -math.inf
@@ -110,6 +135,7 @@ def replicate(
     means: np.ndarray,
     sigma: float | np.ndarray | None,
     rng: np.random.Generator,
+    df: float | None = None,
 ) -> np.ndarray:
     """Generate replicated observations for posterior predictive checks.
 
@@ -142,6 +168,17 @@ def replicate(
     if fam == "bernoulli":
         p = np.clip(means, 0.0, 1.0)
         return rng.binomial(1, p)
+
+    if fam == "exponential":
+        return rng.exponential(np.maximum(means, 1e-15))
+
+    if fam == "student_t":
+        nu = 4.0 if df is None else float(df)
+        if sigma is None:
+            sigma = 1.0
+        sigma = np.asarray(sigma, dtype=float)
+        scale = float(sigma) if sigma.ndim == 0 else sigma[:, None]
+        return means + scale * rng.standard_t(nu, size=means.shape)
 
     # gamma
     if sigma is None:
