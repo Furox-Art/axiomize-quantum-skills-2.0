@@ -25,5 +25,9 @@ casadi>=3.6
 # is collected.
 pytest>=8.0
 
+# Coverage reporter for the `coverage` CI job. pytest-cov supplies the
+# --cov/--cov-fail-under flags; without it that job cannot run.
+pytest-cov>=5.0
+
 # Playground only (playground/app.py):
 #   pip install pandas gradio
