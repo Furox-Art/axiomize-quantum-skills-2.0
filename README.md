@@ -1,6 +1,6 @@
 # Axiomize Quantum Skills - 2.0  
   
-Current package line: **1.1.1**  
+Current package line: **1.2.0**  
   
 ![License](https://img.shields.io/badge/license-MIT-blue)  
 ![Python](https://img.shields.io/badge/python-3.10%2B-informational)  

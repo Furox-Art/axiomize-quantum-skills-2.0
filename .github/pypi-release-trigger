@@ -1,2 +1,2 @@
-axiomize-quantum-skills-2.0 1.1.1
-metadata refresh release
+axiomize-quantum-skills-2.0 1.2.0
+front-door and AIPW statsmodels reference checks, exponential and student_t likelihoods with optional MALA sampler, benchmark corpus extended to 25 cases

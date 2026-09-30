@@ -2,6 +2,27 @@
 
 All notable changes to Axiomize are documented here. Axiomize follows semantic versioning; release claims are tied to exact-wheel CI/release evidence.
 
+## [1.2.0] - 2026-09-30
+
+### Added
+
+- causal estimators now carry external-reference checks against statsmodels: front-door
+  (`x→m`, `m→y` and direct-effect) point estimates and HC1 standard errors match statsmodels
+  OLS, and binary AIPW matches a statsmodels Logit propensity plus two OLS outcome models
+  (PR #19; `tests/test_numerical_reference.py::TestCausalExternalReference`)
+- `exponential` and `student_t` log-likelihoods in the package-native Bayesian engine, both
+  checked against `scipy.stats` (PR #20; `tests/test_bayesian_likelihoods.py`)
+- optional Metropolis-adjusted Langevin sampling via `sampler: langevin` (alias `mala`); a
+  non-finite gradient step falls back to random-walk Metropolis for that iteration. The
+  default sampler is unchanged and remains Metropolis-Hastings (PR #20)
+- benchmark corpus grown from 20 to 25 closed-form cases with formula-checked oracles
+  (PR #21; `benchmarks/ideas.json`, `tests/test_benchmark_ideas.py`):
+  - physics: RC discharge, `10/e` V
+  - biology: three doublings, 8000 cells
+  - chemistry: first-order half-life, `ln(2)/0.1` h
+  - operations: M/M/1 queue wait, 0.8 h
+  - causal: randomized difference in means, 4
+
 ## [1.1.1] - 2026-09-29
 
 - Metadata-only patch release: refreshed PyPI keywords, classifiers, and discovery metadata; no functional API changes.
