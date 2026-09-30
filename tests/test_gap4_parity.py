@@ -61,22 +61,48 @@ def _cli_validate_output(params: dict) -> dict:
     return json.loads(buf.getvalue())
 
 
+# /sensitivity runs a hardcoded 1000-sample Monte Carlo (mc_sensitivity(n=1000))
+# over a full solve_sir each time, so it costs roughly 30s untraced and over a
+# minute under --cov tracing regardless of N. The client timeout therefore needs
+# real headroom, and transient connection-level failures need a retry: on Windows a
+# slow handler shows up as ConnectionAbortedError (WinError 10053) or as a plain
+# timeout, both of which are environment noise rather than a parity failure.
+_REST_TIMEOUT = 300.0
+_REST_ATTEMPTS = 3
+
+
 def _rest_post(port: int, path: str, payload: dict) -> tuple[int, dict]:
-    req = urllib.request.Request(
-        f"http://127.0.0.1:{port}{path}",
-        data=json.dumps(payload).encode("utf-8"),
-        headers={"Content-Type": "application/json"},
-        method="POST",
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=60) as resp:
-            return resp.status, json.loads(resp.read().decode("utf-8"))
-    except urllib.error.HTTPError as exc:
-        body = exc.read().decode("utf-8", "replace")
+    encoded = json.dumps(payload).encode("utf-8")
+    last: Exception | None = None
+    for _ in range(_REST_ATTEMPTS):
+        req = urllib.request.Request(
+            f"http://127.0.0.1:{port}{path}",
+            data=encoded,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
         try:
-            return exc.code, json.loads(body)
-        except ValueError:
-            return exc.code, {"raw": body}
+            with urllib.request.urlopen(req, timeout=_REST_TIMEOUT) as resp:
+                raw = resp.read().decode("utf-8", "replace")
+                try:
+                    return resp.status, json.loads(raw)
+                except ValueError:
+                    # A 200 carrying an HTML or proxy error page is still an
+                    # answer; report it instead of crashing on a decode error.
+                    return resp.status, {"raw": raw}
+        except urllib.error.HTTPError as exc:
+            # A real HTTP status is an answer, not a transport failure: report it
+            # rather than retrying, so the parity assertion still sees the code.
+            body = exc.read().decode("utf-8", "replace")
+            try:
+                return exc.code, json.loads(body)
+            except ValueError:
+                return exc.code, {"raw": body}
+        except (urllib.error.URLError, OSError, TimeoutError) as exc:
+            last = exc
+    raise AssertionError(
+        f"REST {path} unreachable after {_REST_ATTEMPTS} attempts: {last!r}"
+    ) from last
 
 
 # --- smoke: uc katman da import edilebiliyor ve ayni core modulu goruyor ---
@@ -179,11 +205,15 @@ def test_mcp_uncertainty_calls_core_service():
 def test_rest_sensitivity_route_exists_live():
     """REST sensitivity endpointi core sensitivity_service'e bagli olmali.
 
-    Marks itself `network` because it binds a real HTTP server on a real port and
-    posts to it. Under `--cov` tracing the handler is slow enough that the socket
-    is aborted (WinError 10053) and the request surfaces as TimeoutError, so the
-    coverage job deselects this marker. It still runs untraced in the validate
-    matrix. TODO: make the request retry so the mark is not needed.
+    Marked `network` for cost, not for flakiness. The endpoint runs a hardcoded
+    1000-sample Monte Carlo per call, so one request costs ~30s and the coverage
+    job does not need to pay that. It is no longer unreliable: _rest_post retries
+    transport-level failures and allows a 300s timeout, both of which were added
+    after the endpoint turned out to be slower than the old 60s client timeout
+    under --cov tracing.
+
+    TODO: give /sensitivity a sample-count parameter so this test can use a small
+    budget instead of paying for the full Monte Carlo.
 
     GERCEK: rest_server.py'de /sensitivity rotasi yok (404); oysa
     sensitivity_service ve MCP sensitivity_analysis mevcut.
@@ -206,6 +236,81 @@ def test_rest_sensitivity_route_exists_live():
         )
         assert "local" in body and "mc_screening" in body, (
             f"PARITE KIRIK (REST sensitivity): beklenen anahtarlar yok: {sorted(body)}"
-        )
+)
     finally:
         srv.shutdown()
+
+
+# --- _rest_post transport hardening (cheap, runs no real computation) ---
+
+
+class _FakeResponse(io.BytesIO):
+    status = 200
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc_info):
+        self.close()
+        return False
+
+
+def test_rest_post_retries_transport_failures_then_succeeds(monkeypatch):
+    """A Windows connection abort is environment noise, not a parity failure."""
+    seen = {"n": 0}
+
+    def flaky(req, timeout=None):
+        seen["n"] += 1
+        if seen["n"] < 3:
+            raise ConnectionAbortedError(10053, "software caused connection abort")
+        return _FakeResponse(json.dumps({"local": {}, "mc_screening": {}}).encode("utf-8"))
+
+    monkeypatch.setattr(urllib.request, "urlopen", flaky)
+    code, body = _rest_post(1, "/sensitivity", {})
+
+    assert code == 200
+    assert sorted(body) == ["local", "mc_screening"]
+    assert seen["n"] == 3
+
+
+def test_rest_post_gives_up_after_the_attempt_limit(monkeypatch):
+    """Bounded retry: a permanently unreachable route must fail, not hang."""
+    seen = {"n": 0}
+
+    def always_aborts(req, timeout=None):
+        seen["n"] += 1
+        raise ConnectionAbortedError(10053, "abort")
+
+    monkeypatch.setattr(urllib.request, "urlopen", always_aborts)
+    with pytest.raises(AssertionError, match="unreachable after 3 attempts"):
+        _rest_post(1, "/sensitivity", {})
+    assert seen["n"] == _REST_ATTEMPTS
+
+
+def test_rest_post_does_not_retry_a_real_http_status(monkeypatch):
+    """A 404 is an answer the parity assertion must see, so it must not be retried."""
+    seen = {"n": 0}
+
+    def not_found(req, timeout=None):
+        seen["n"] += 1
+        raise urllib.error.HTTPError(
+            req.full_url, 404, "Not Found", {}, io.BytesIO(b'{"error": "no route"}')
+        )
+
+    monkeypatch.setattr(urllib.request, "urlopen", not_found)
+    code, body = _rest_post(1, "/sensitivity", {})
+
+    assert code == 404
+    assert body == {"error": "no route"}
+    assert seen["n"] == 1
+
+
+def test_rest_post_returns_raw_body_when_a_response_is_not_json(monkeypatch):
+    monkeypatch.setattr(
+        urllib.request,
+        "urlopen",
+        lambda req, timeout=None: _FakeResponse(b"<html>gateway timeout</html>"),
+    )
+    code, body = _rest_post(1, "/sensitivity", {})
+    assert code == 200
+    assert body == {"raw": "<html>gateway timeout</html>"}
