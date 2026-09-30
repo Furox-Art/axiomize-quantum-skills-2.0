@@ -245,3 +245,86 @@ class TestCausalExternalReference:
         assert result["causal_effect"]["estimate"] == pytest.approx(float(ref.params[1]), rel=1e-6, abs=1e-8)
         assert result["causal_effect"]["std_error"] == pytest.approx(float(ref.bse[1]), rel=1e-4)
         assert result["causal_effect"]["estimate"] == pytest.approx(1.5, abs=0.2)
+
+    def test_frontdoor_matches_statsmodels_hc1(self) -> None:
+        """Front-door stages are two OLS fits; components must match statsmodels HC1."""
+        import statsmodels.api as sm
+
+        rng = np.random.default_rng(5)
+        n = 700
+        x = rng.normal(size=n)
+        t = 0.4 * x + rng.normal(size=n)
+        m = 1.2 * t + 0.3 * x + rng.normal(scale=0.4, size=n)
+        y = 0.5 * t + 2.0 * m - 0.2 * x + rng.normal(scale=0.4, size=n)
+        model = _model({
+            "name": "fd_ext_ref", "family": "causal",
+            "variables": [{"name": "y", "role": "output", "initial": 0.0}], "parameters": [],
+            "equations": [{"target": "y", "expression": "0", "kind": "causal"}],
+            "metadata": {"causal": {
+                "treatment": "t", "outcome": "y",
+                "data": {"x": x.tolist(), "t": t.tolist(), "m": m.tolist(), "y": y.tolist()},
+                "identification": {
+                    "method": "frontdoor",
+                    "mediator": "m",
+                    "adjustment_set": ["x"],
+                },
+            }},
+        })
+        result = simulate_model(model)
+        fit_m = sm.OLS(m, np.column_stack([np.ones(n), x, t])).fit(cov_type="HC1")
+        fit_y = sm.OLS(y, np.column_stack([np.ones(n), x, t, m])).fit(cov_type="HC1")
+        alpha = float(fit_m.params[-1])
+        gamma = float(fit_y.params[-2])
+        beta = float(fit_y.params[-1])
+        parts = result["causal_effect"]["frontdoor_components"]
+        assert parts["x_to_m"]["estimate"] == pytest.approx(alpha, rel=1e-6, abs=1e-8)
+        assert parts["x_to_m"]["std_error"] == pytest.approx(float(fit_m.bse[-1]), rel=1e-4)
+        assert parts["m_to_y"]["estimate"] == pytest.approx(beta, rel=1e-6, abs=1e-8)
+        assert parts["m_to_y"]["std_error"] == pytest.approx(float(fit_y.bse[-1]), rel=1e-4)
+        assert parts["direct_effect"]["estimate"] == pytest.approx(gamma, rel=1e-6, abs=1e-8)
+        assert parts["direct_effect"]["std_error"] == pytest.approx(float(fit_y.bse[-2]), rel=1e-4)
+        assert result["causal_effect"]["estimate"] == pytest.approx(alpha * beta + gamma, rel=1e-6, abs=1e-8)
+
+    def test_aipw_matches_statsmodels_logit_and_ols(self) -> None:
+        """Binary AIPW uses a logit propensity and two OLS outcome models."""
+        import statsmodels.api as sm
+
+        rng = np.random.default_rng(9)
+        n = 900
+        x = rng.normal(size=n)
+        propensity_true = 1.0 / (1.0 + np.exp(-(-0.2 + 0.8 * x)))
+        t = rng.binomial(1, propensity_true).astype(float)
+        y = 1.25 * t - 0.5 * x + rng.normal(scale=0.7, size=n)
+        model = _model({
+            "name": "aipw_ext_ref", "family": "causal",
+            "variables": [{"name": "y", "role": "output", "initial": 0.0}], "parameters": [],
+            "equations": [{"target": "y", "expression": "0", "kind": "causal"}],
+            "metadata": {"causal": {
+                "treatment": "t", "outcome": "y",
+                "data": {"x": x.tolist(), "t": t.tolist(), "y": y.tolist()},
+                "identification": {
+                    "method": "backdoor",
+                    "adjustment_set": ["x"],
+                    "assumptions": ["exchangeability given measured covariates", "positivity", "consistency"],
+                },
+            }},
+        })
+        result = simulate_model(model)
+        base = np.column_stack([np.ones(n), x])
+        fitted = sm.Logit(t, base).fit(disp=0)
+        ps = np.clip(np.asarray(fitted.predict(base), dtype=float), 1e-4, 1.0 - 1e-4)
+        treated = t == 1
+        b1 = np.asarray(sm.OLS(y[treated], base[treated]).fit().params, dtype=float)
+        b0 = np.asarray(sm.OLS(y[~treated], base[~treated]).fit().params, dtype=float)
+        m1 = base @ b1
+        m0 = base @ b0
+        psi = m1 - m0 + t * (y - m1) / ps - (1.0 - t) * (y - m0) / (1.0 - ps)
+        ref_aipw = float(np.mean(psi))
+        ref_se = float(np.std(psi, ddof=1) / math.sqrt(n))
+        joint = sm.OLS(y, np.column_stack([np.ones(n), t, x])).fit(cov_type="HC1")
+        estimators = result["causal_effect"]["estimators"]
+        assert result["causal_effect"]["estimate"] == pytest.approx(ref_aipw, rel=1e-5, abs=1e-6)
+        assert result["causal_effect"]["std_error"] == pytest.approx(ref_se, rel=1e-4, abs=1e-6)
+        assert estimators["outcome_regression"]["estimate"] == pytest.approx(float(joint.params[1]), rel=1e-6, abs=1e-8)
+        assert estimators["outcome_regression"]["std_error"] == pytest.approx(float(joint.bse[1]), rel=1e-4)
+        assert result["causal_effect"]["estimate"] == pytest.approx(1.25, abs=0.25)

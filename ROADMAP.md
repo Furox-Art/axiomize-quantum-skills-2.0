@@ -61,7 +61,7 @@ Axiomize has moved from a prompt/skill-only project into a versioned scientific 
 ## Next evidence/maturity work
 
 - [ ] broaden independent end-to-end benchmark corpora across physics, biology, chemistry, operations and causal datasets (corpus now at 20 cases: +physics ringdown, +biology pharmacokinetics, +chemistry catalyst deactivation, +operations overbooking, +causal program evaluation) (in progress: corpus at 20 cases, one fresh case per named domain landed with numeric oracles where defensible — `benchmarks/ideas.json` v1.1.0)
-- [ ] compare selected numerical results against external reference implementations, not only internal regression oracles (first external references landed: causal IV/2SLS and backdoor-OLS estimators vs statsmodels in `tests/test_numerical_reference.py`)
+- [ ] compare selected numerical results against external reference implementations, not only internal regression oracles (landed: causal IV/2SLS and backdoor-OLS vs statsmodels; front-door HC1 stages and binary AIPW vs statsmodels Logit + OLS in `tests/test_numerical_reference.py`)
 - [ ] add optional full schema/tool validation for CellML/Modelica where ecosystem validators are available
 - [ ] broaden FEM problem classes beyond bounded scalar Poisson while preserving structured/non-executable input contracts
 - [x] broaden causal identification beyond backdoor/randomized studies: explicit front-door adjustment, IV/2SLS and longitudinal MSM with surfaced identification assumptions (`causal_engine.py`; covered by `tests/test_scientific_upgrade_112.py` and `tests/test_numerical_reference.py`, including statsmodels external-reference comparisons)
