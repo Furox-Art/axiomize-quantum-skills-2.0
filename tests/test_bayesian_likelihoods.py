@@ -180,3 +180,82 @@ class TestPosteriorPredictive:
         with pytest.raises(ValueError, match="sigma vector"):
             posterior_predictive(family="normal", observed=observed, means=means,
                                  sigmas=bad_sigmas, seed=42)
+
+
+class TestExternalLikelihoodReference:
+    def test_exponential_matches_scipy(self):
+        from scipy.stats import expon
+
+        obs = np.array([0.2, 1.5, 3.0]); mean = np.array([1.0, 2.0, 2.5])
+        expected = float(np.sum(expon.logpdf(obs, scale=mean)))
+        assert log_likelihood("exponential", obs, mean) == pytest.approx(expected)
+
+    def test_exponential_rejects_negative_observation(self):
+        obs = np.array([-0.1, 1.0]); mean = np.array([1.0, 1.0])
+        assert log_likelihood("exponential", obs, mean) == -math.inf
+
+    def test_student_t_matches_scipy(self):
+        from scipy.stats import t
+
+        obs = np.array([-1.0, 0.2, 1.4]); mean = np.array([0.0, 0.0, 0.5])
+        sigma = 0.8; df = 5.0
+        expected = float(np.sum(t.logpdf(obs, df, loc=mean, scale=sigma)))
+        assert log_likelihood("student_t", obs, mean, sigma=sigma, df=df) == pytest.approx(expected, rel=1e-10, abs=1e-10)
+
+    def test_replicate_exponential_and_student_t(self):
+        rng = np.random.default_rng(1)
+        exp = replicate("exponential", np.array([1.0, 2.0]), sigma=None, rng=rng)
+        assert exp.shape == (2,) and np.all(exp >= 0)
+        draw = replicate("student_t", np.array([[0.0, 1.0]]), sigma=np.array([0.5]), rng=rng, df=4)
+        assert draw.shape == (1, 2) and np.all(np.isfinite(draw))
+
+
+class TestOptionalLangevinSampler:
+    @staticmethod
+    def _model(extra: dict) -> "ModelIR":
+        from axiomize.model_ir import ModelIR
+
+        x = [0.0, 1.0, 2.0, 3.0, 4.0]
+        y = [0.0, 2.0, 4.0, 6.0, 8.0]
+        payload = {
+            "schema_version": "1.0", "domain": "general",
+            "name": "mala_ref", "family": "bayesian",
+            "variables": [{"name": "y", "role": "output", "initial": 0.0}],
+            "parameters": [{"name": "a", "value": 1.8, "fit": True,
+                            "prior": {"dist": "normal", "mu": 0.0, "sigma": 3.0}}],
+            "equations": [{"target": "y", "expression": "a*x", "kind": "observation"}],
+            "metadata": {"bayesian": {
+                "data": {"x": x}, "observations": y,
+                "mean_expression": "a*x", "sigma": 0.2,
+                "draws": 80, "burn": 20, "chains": 2,
+                "proposal_scale": {"a": 0.05},
+                "return_samples": False,
+            }, "numerical_verification": {"enabled": False}},
+        }
+        payload["metadata"]["bayesian"].update(extra)
+        return ModelIR.from_dict(payload)
+
+    def test_default_sampler_stays_metropolis(self):
+        from axiomize.bayesian.engine_v2 import infer_bayesian_model
+
+        result = infer_bayesian_model(self._model({}), t_span=(0.0, 1.0), points=20, parameter_overrides=None, seed=3)
+        assert result["solver"]["method"] == "multi_chain_random_walk_metropolis"
+        assert result["diagnostics"]["langevin_fallback_steps"] == 0
+
+    def test_mala_recovers_conjugate_mean(self):
+        from axiomize.bayesian.engine_v2 import infer_bayesian_model
+
+        result = infer_bayesian_model(
+            self._model({"sampler": "langevin", "langevin_step": 0.8}),
+            t_span=(0.0, 1.0), points=20, parameter_overrides=None, seed=11,
+        )
+        x = [0.0, 1.0, 2.0, 3.0, 4.0]
+        y = [0.0, 2.0, 4.0, 6.0, 8.0]
+        sigma = 0.2; s0 = 3.0; mu0 = 0.0; sig2 = sigma ** 2
+        sx2 = sum(v * v for v in x); sxy = sum(xi * yi for xi, yi in zip(x, y))
+        prec = 1.0 / s0 ** 2 + sx2 / sig2
+        mean_post = (1.0 / prec) * (mu0 / s0 ** 2 + sxy / sig2)
+        steps = result["diagnostics"]["sampler_steps"]
+        assert result["solver"]["method"] == "metropolis_adjusted_langevin"
+        assert result["diagnostics"]["langevin_fallback_steps"] < 0.25 * steps
+        assert result["posterior"]["a"]["mean"] == pytest.approx(mean_post, abs=0.2)

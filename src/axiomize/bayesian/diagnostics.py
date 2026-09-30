@@ -86,7 +86,8 @@ def posterior_diagnostics(chains: np.ndarray, names: list[str]) -> dict[str, Any
 
 def posterior_predictive(*, family: str = "normal", observed: np.ndarray,
                          means: np.ndarray, sigmas: np.ndarray | None = None,
-                         seed: int, max_replications: int = 1000) -> dict[str, Any]:
+                         seed: int, max_replications: int = 1000,
+                         df: float | None = None) -> dict[str, Any]:
     """Posterior predictive checks for any likelihood family.
 
     Dispatches replication to the matching likelihood family so that PPC
@@ -105,7 +106,7 @@ def posterior_predictive(*, family: str = "normal", observed: np.ndarray,
     indices = np.linspace(0, means.shape[0] - 1, count, dtype=int)
     rng = np.random.default_rng(seed)
     selected_sigmas = sigmas[indices] if sigmas is not None else None
-    replicated = replicate(fam, means[indices], selected_sigmas, rng)
+    replicated = replicate(fam, means[indices], selected_sigmas, rng, df=df)
     pred_mean = np.mean(replicated, axis=0)
     lo90, hi90 = np.quantile(replicated, [0.05, 0.95], axis=0)
     lo95, hi95 = np.quantile(replicated, [0.025, 0.975], axis=0)

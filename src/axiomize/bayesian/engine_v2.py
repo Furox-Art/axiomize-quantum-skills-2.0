@@ -32,6 +32,9 @@ def _validate_observations_for_family(family: str, observed: np.ndarray) -> None
     if family == "gamma":
         if not np.all(observed > 0):
             raise ValueError("gamma observations must be strictly positive")
+    if family == "exponential":
+        if not np.all(observed >= 0):
+            raise ValueError("exponential observations must be non-negative")
 
 
 def _parameters(model: ModelIR, overrides: dict[str, float] | None) -> dict[str, float]:
@@ -84,6 +87,17 @@ def _log_prior(value: float, prior: dict[str, Any] | None, bounds: tuple[float |
     raise ValueError(f"unsupported builtin prior distribution: {dist}")
 
 
+def _numeric_grad(posterior, v: np.ndarray) -> np.ndarray:
+    g = np.empty_like(v)
+    for i in range(v.size):
+        h = max(1e-6, 1e-4 * abs(float(v[i])))
+        vp = v.copy(); vp[i] += h
+        vm = v.copy(); vm[i] -= h
+        lp = posterior(vp); lm = posterior(vm)
+        g[i] = (lp - lm) / (2.0 * h) if math.isfinite(lp) and math.isfinite(lm) else math.nan
+    return g
+
+
 def infer_bayesian_model(model: ModelIR, *, t_span: tuple[float,float], points: int,
                          parameter_overrides: dict[str,float] | None, seed: int) -> dict[str,Any]:
     del t_span
@@ -118,6 +132,23 @@ def infer_bayesian_model(model: ModelIR, *, t_span: tuple[float,float], points: 
     likelihood_cfg=cfg.get("likelihood",{}) if isinstance(cfg.get("likelihood",{}),dict) else {"dist":str(cfg.get("likelihood"))}
     family=_resolve_family_safe(likelihood_cfg.get("dist","normal"))
     _validate_observations_for_family(family, observed)
+    df_spec=likelihood_cfg.get("df", likelihood_cfg.get("nu", 4.0 if family=="student_t" else None))
+    if family=="student_t":
+        try:
+            df_value=float(df_spec)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("student_t df must be a finite number greater than 0") from exc
+        if not math.isfinite(df_value) or df_value<=0:
+            raise ValueError("student_t df must be a finite number greater than 0")
+    else:
+        df_value=None
+    sampler_name=str(cfg.get("sampler","metropolis")).lower()
+    if sampler_name in {"mh","metropolis","random_walk"}: sampler_name="metropolis"
+    elif sampler_name in {"mala","langevin"}: sampler_name="mala"
+    else: raise ValueError("bayesian sampler must be 'metropolis' or 'mala'")
+    langevin_step=float(cfg.get("langevin_step",1.0))
+    if sampler_name=="mala" and (not math.isfinite(langevin_step) or langevin_step<=0):
+        raise ValueError("langevin_step must be finite and positive")
     draws=bounded_int(cfg.get("draws", max(200,int(points))),name="bayesian.draws",minimum=50,maximum=MAX_BAYES_DRAWS)
     burn=bounded_int(cfg.get("burn",max(50,draws//4)),name="bayesian.burn",minimum=0,maximum=MAX_BAYES_DRAWS)
     chains=bounded_int(cfg.get("chains",4),name="bayesian.chains",minimum=2,maximum=8)
@@ -147,10 +178,11 @@ def infer_bayesian_model(model: ModelIR, *, t_span: tuple[float,float], points: 
         if mean.shape!=observed.shape or not np.all(np.isfinite(mean)): return -math.inf
         sigma=env[sigma_spec] if isinstance(sigma_spec,str) else float(sigma_spec)
         if not math.isfinite(float(sigma)) or sigma<=0:return -math.inf
-        ll=log_likelihood(family, observed, mean, sigma=sigma)
+        ll=log_likelihood(family, observed, mean, sigma=sigma, df=df_value)
         if not math.isfinite(ll):return -math.inf
         return lp + ll
-    all_chains=np.zeros((chains,draws,len(sampled)),dtype=float); accept=[]
+    all_chains=np.zeros((chains,draws,len(sampled)),dtype=float); accept=[]; fallback_steps=0; total_steps=0
+    eps=scales*langevin_step
     for c in range(chains):
         rng=np.random.default_rng(int(seed)+104729*c)
         current=centers + rng.normal(scale=scales*0.05,size=centers.shape)
@@ -159,9 +191,29 @@ def infer_bayesian_model(model: ModelIR, *, t_span: tuple[float,float], points: 
         if not math.isfinite(current_lp): raise ValueError("initial Bayesian parameter values have zero/invalid posterior density")
         accepted=0; kept=0
         for iteration in range(draws+burn):
-            proposal=current+rng.normal(scale=scales,size=current.shape); proposed=posterior(proposal)
-            if math.isfinite(proposed) and math.log(max(rng.random(),1e-300)) < proposed-current_lp:
-                current=proposal; current_lp=proposed; accepted+=1
+            total_steps+=1
+            took=False
+            if sampler_name=="mala":
+                g_cur=_numeric_grad(posterior, current)
+                if np.all(np.isfinite(g_cur)):
+                    proposal=current + 0.5*(eps**2)*g_cur + eps*rng.normal(size=current.shape)
+                    proposed=posterior(proposal)
+                    if math.isfinite(proposed):
+                        g_prop=_numeric_grad(posterior, proposal)
+                        if np.all(np.isfinite(g_prop)):
+                            def _log_q(dest, src, gsrc):
+                                delta=(dest-src-0.5*(eps**2)*gsrc)/eps
+                                return -0.5*float(np.dot(delta, delta))
+                            log_alpha=proposed-current_lp+_log_q(current, proposal, g_prop)-_log_q(proposal, current, g_cur)
+                            if math.log(max(rng.random(),1e-300)) < log_alpha:
+                                current=proposal; current_lp=proposed; accepted+=1
+                            took=True
+                if not took:
+                    fallback_steps+=1
+            if not took:
+                proposal=current+rng.normal(scale=scales,size=current.shape); proposed=posterior(proposal)
+                if math.isfinite(proposed) and math.log(max(rng.random(),1e-300)) < proposed-current_lp:
+                    current=proposal; current_lp=proposed; accepted+=1
             if iteration>=burn: all_chains[c,kept]=current; kept+=1
         accept.append(accepted/max(1,draws+burn))
     flat=all_chains.reshape(chains*draws,len(sampled)); summaries={}; posterior_params=dict(parameters)
@@ -170,7 +222,7 @@ def infer_bayesian_model(model: ModelIR, *, t_span: tuple[float,float], points: 
         summaries[p.name]={"mean":mean,"sd":float(np.std(column,ddof=1)),"q025":float(np.quantile(column,.025)),"median":float(np.quantile(column,.5)),"q975":float(np.quantile(column,.975))}
     diag=posterior_diagnostics(all_chains,[p.name for p in sampled])
     # PPC uses a deterministic bounded subset of posterior draws.
-    needs_sigma = family in ("normal", "gamma")
+    needs_sigma = family in ("normal", "gamma", "student_t")
     ppc_count=min(1000,flat.shape[0]); idx=np.linspace(0,flat.shape[0]-1,ppc_count,dtype=int); ppc_means=[]; ppc_sigmas=None
     if needs_sigma: ppc_sigmas=[]
     for row in flat[idx]:
@@ -181,14 +233,15 @@ def infer_bayesian_model(model: ModelIR, *, t_span: tuple[float,float], points: 
         sigma=env[sigma_spec] if isinstance(sigma_spec,str) else float(sigma_spec)
         ppc_means.append(mean)
         if needs_sigma: ppc_sigmas.append(sigma)
-    ppc=posterior_predictive(family=family, observed=observed, means=np.asarray(ppc_means), sigmas=np.asarray(ppc_sigmas) if ppc_sigmas is not None else None, seed=int(seed)+99991, max_replications=ppc_count)
+    ppc=posterior_predictive(family=family, observed=observed, means=np.asarray(ppc_means), sigmas=np.asarray(ppc_sigmas) if ppc_sigmas is not None else None, seed=int(seed)+99991, max_replications=ppc_count, df=df_value)
+    method_name="metropolis_adjusted_langevin" if sampler_name=="mala" else "multi_chain_random_walk_metropolis"
     result:dict[str,Any]={
         "status":"PASS","family":model.family.value,
         "states":{v.name:float(v.initial) for v in model.variables if v.initial is not None},
         "parameters":posterior_params,"posterior":summaries,
         "posterior_predictive":ppc,
-        "solver":{"backend":"builtin","method":"multi_chain_random_walk_metropolis","likelihood":family,"seed":int(seed)},
-        "diagnostics":{"draws":draws,"burn":burn,"chains":chains,"acceptance_rate_by_chain":accept,"likelihood":family,"posterior":diag,"finite":bool(np.all(np.isfinite(all_chains)))},
+        "solver":{"backend":"builtin","method":method_name,"likelihood":family,"seed":int(seed)},
+        "diagnostics":{"draws":draws,"burn":burn,"chains":chains,"acceptance_rate_by_chain":accept,"likelihood":family,"posterior":diag,"finite":bool(np.all(np.isfinite(all_chains))),"sampler":sampler_name,"langevin_fallback_steps":fallback_steps,"sampler_steps":total_steps},
     }
     if bool(cfg.get("return_samples",False)):
         result["samples"]={p.name:flat[:,i].tolist() for i,p in enumerate(sampled)}
