@@ -22,7 +22,10 @@ Two consequences worth stating plainly:
   pair is upstream history; the later one is a real release of this package, identifiable
   by its date and by the tag on the GitHub Releases page for this repository.
 - The npm package `axiomize-quantum-skills-2.0` is published at `2.0.0`. That number is not
-  part of this lineage and does not correspond to any release here.
+  part of this lineage and does not correspond to any release here. (Superseded: #25 pinned
+  `package.json` to `1.2.0` and CI now enforces the lockstep, so the next npm release
+  carries the current version. The registry still serves `2.0.0` until that publish
+  happens.)
 
 `python .github/scripts/check_release_contract.py` enforces the version lockstep across
 `pyproject.toml`, `src/axiomize/__init__.py`, `.github/pypi-release-trigger`, `README.md` and
@@ -30,6 +33,28 @@ the first `## [x.y.z]` heading in this file. That is why the first release headi
 always be the current version.
 
 ## Unreleased
+
+### Changed
+
+- **npm status corrected after #25.** #25 fixed `index.js` and pinned `package.json` to
+  `1.2.0`, so the documentation no longer describes the npm CLI as broken in the source.
+  It does describe it accurately for users, because the fix is **not yet published**:
+  `registry.npmjs.org` still serves `2.0.0`, uploaded 2026-09-28, whose `index.js` is the
+  old `proc.on('close', (code) =; }` and whose tarball is 303 files / 2.1 MB. So
+  `npx axiomize-quantum` still fails while `node bin/axiomize-quantum.js` works from a
+  checkout. Verified on the merged tree: `node --check` exits 0 on both JavaScript files,
+  `node index.js --help` exits 0, a bad subcommand exits 2, `require('./index.js')`
+  resolves, and `npm pack --dry-run` produces 6 files / 41.2 kB. PyPI 1.2.0 is the
+  supported install.
+- README, `docs/index.md`, `docs/tutorial.md`, `docs/integrations.md` and
+  `docs/publishing-checklist.md` now say "npm is behind, PyPI is current" instead of either
+  "npm is broken" or "npm works". Benchmark and command provenance now cites the merge
+  commit rather than the pre-merge one, and the 25-case corpus was re-graded on the merged
+  tree: still 25/25 PASS at 10.0/10 with identical lens counts.
+- `SECURITY.md` records the exact API response behind its reporting guidance
+  (`{"enabled":false}`), names the advisories endpoint so a reader can see it does not work
+  yet, and states the single settings change that would fix it. The fallback instructions
+  are unchanged because the setting is genuinely still disabled.
 
 ### Added
 

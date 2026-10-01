@@ -4,7 +4,7 @@ Axiomize is a scientific engine; AI providers are clients of it. All three inter
 the same core services, so validation behaviour never depends on which agent calls.
 
 Everything on this page was verified against `axiomize-quantum-skills-2.0` **1.2.0** at
-commit `eb70a47`, CPython 3.12.10 (Windows), with the default install (no `pymc`, no
+commit `338bc9e`, CPython 3.12.10 (Windows), with the default install (no `pymc`, no
 `jax`).
 
 ## Capability discovery
@@ -88,6 +88,25 @@ Structured JSON in, structured JSON out (API v1). Tools that can be expensive
 (`experiment_design`, `model_uncertainty`, `model_validity`, `model_bifurcation`,
 `model_numerical_verify`, `model_discovery`, `model_surrogate` generation) accept
 `approve_heavy`; that gate is the consent boundary, not a formality.
+
+### npm launcher
+
+The npm package is a thin launcher for the same CLI. From a checkout it works:
+
+```bash
+pip install axiomize-quantum-skills-2.0
+node bin/axiomize-quantum.js --help     # verified: prints the axiomize usage, exit 0
+node bin/axiomize-quantum.js benchmark  # verified: 12/12 PASS
+```
+
+It resolves the console script first and falls back to `python -m axiomize.cli`, and it
+propagates the child's exit code (a bad subcommand exits 2, `--help` exits 0). Set
+`AXIOMIZE_PYTHON` to pin the interpreter or `AXIOMIZE_CLI` to pin the entry point.
+
+The npm **registry** copy is still one version behind: npm serves `2.0.0`, published
+before this fix, so `npx axiomize-quantum` fails on a syntax error in the old `index.js`.
+`package.json` is pinned to `1.2.0` in lockstep with Python and CI enforces that, so the
+next npm release carries the fix. Use PyPI until then.
 
 ## Via REST (v1)
 

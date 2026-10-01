@@ -1,7 +1,7 @@
 # Your First Axiomize Session
 
 A beginner walkthrough. Every command in this page was executed against
-`axiomize-quantum-skills-2.0` **1.2.0** at commit `eb70a47` on CPython 3.12.10 (Windows),
+`axiomize-quantum-skills-2.0` **1.2.0** at commit `338bc9e` on CPython 3.12.10 (Windows),
 with numpy 2.5.3 and scipy 1.18.1. If a command here stops working, that is a documentation
 bug worth reporting.
 
@@ -326,4 +326,4 @@ Fitted values come back with confidence intervals and explicit fit-quality score
 | `request requires a model_ir (or model) JSON object` | Your JSON needs a `model_ir` wrapper object, not a bare model. Copy `docs/quickstart-model-ir.json` |
 | `needs a model_ir ... JSONDecodeError: Unexpected UTF-8 BOM` | Your editor wrote a UTF-8 BOM. Save as plain UTF-8, no BOM |
 | `MigrationApprovalRequired` | Your IR uses a legacy field layout. Re-run with `--approve-migration` to see the preview diff, then update |
-| `npx axiomize-quantum` fails with a syntax error | Known: the published npm `index.js` is broken. Use the PyPI package instead |
+| `npx axiomize-quantum` fails with a syntax error | npm still serves `2.0.0`, published before the launcher fix. Use PyPI, or run `node bin/axiomize-quantum.js` from a checkout |

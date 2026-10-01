@@ -18,8 +18,16 @@ the final merged commit on `main`. Unmerged branch artifacts are not release evi
 Please do not publish an exploit or a sensitive reproduction in a public issue.
 
 **Current state of this repository:** GitHub's private vulnerability reporting is **not
-enabled** here, so the Security tab's "Report a vulnerability" form will not open a private
-channel for you. Until the maintainer enables it, use one of these instead:
+enabled** here. Verified against the GitHub API while this paragraph was written:
+
+```
+GET /repos/Furox-Art/axiomize-quantum-skills-2.0/private-vulnerability-reporting
+{"enabled":false}
+```
+
+So `https://github.com/Furox-Art/axiomize-quantum-skills-2.0/security/advisories/new`
+will not open a private channel for you. Until the maintainer enables it, use one of these
+instead:
 
 1. **Preferred:** open a regular issue that contains only a one-line summary with no
    exploit detail and a pointer such as "contact me via my GitHub profile to arrange a
@@ -27,9 +35,10 @@ channel for you. Until the maintainer enables it, use one of these instead:
 2. **Alternative:** if you have an existing private channel with the maintainer
    (`@Furox-Art`), use it directly.
 
-We are aware this is weaker than private advisory reporting and are working on it. If you
-can enable private vulnerability reporting on this repository, that closes the gap for
-everyone at once.
+We are aware this is weaker than private advisory reporting and are working on it. The
+maintainer can close the gap for everyone with one settings change: **Settings ->
+Code security -> Security -> Enable private vulnerability reporting.** Once that is on,
+this section should be replaced with a direct link to the advisories endpoint.
 
 Whatever route you use, please include:
 

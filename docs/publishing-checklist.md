@@ -45,7 +45,7 @@ axiomize tools        # which backends are really installed
 axiomize benchmark    # -> {"status": "PASS", "passed": 12, "total": 12}
 ```
 
-Verified at 1.2.0, commit `eb70a47`, CPython 3.12.10. Quote that commit if you quote the
+Verified at 1.2.0, commit `338bc9e`, CPython 3.12.10. Quote that commit if you quote the
 `12/12` result.
 
 ## Where to submit
@@ -79,7 +79,7 @@ These would be untrue, so leave them out:
 | "N independent agents produced these reports" | The stored reports are maintainer-authored |
 | "supported by Claude Code / Cursor / OpenCode" | Only MCP protocol conformance was tested here |
 | a stars, forks, or downloads figure | Do not hardcode; link the package page instead |
-| "npm package ready to use" | The published `index.js` is currently broken; use PyPI |
+| "npm package ready to use" | The npm launcher is fixed in source but npm still serves the pre-fix `2.0.0`. Say "PyPI 1.2.0" instead |
 
 ## Keeping this honest
 

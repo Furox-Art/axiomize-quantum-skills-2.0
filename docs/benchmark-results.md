@@ -21,13 +21,13 @@ There are two separate things here, and they measure different things:
 | Field | Value |
 |---|---|
 | Package | `axiomize-quantum-skills-2.0` **1.2.0** |
-| Repository commit | `eb70a4766717d61ed10ffcfb618251162700c9b9` |
+| Repository commit | `338bc9e2ce77a131bce18d4e0e1a1d0c7822be51` |
 | Grading script | `skills/axiomize/tools/benchmark_runner.py` |
 | Corpus | `benchmarks/ideas.json` — 25 cases |
 | Reports | `benchmarks/reports/<id>.md` — 25 matching reports, 0 missing |
 | Python | CPython 3.12.10, Windows AMD64 |
 | Numeric stack | numpy 2.5.3, scipy 1.18.1 |
-| Date run | during the OSS visibility pass on top of `eb70a47` |
+| Date run | during the OSS visibility pass on top of `338bc9e` |
 
 ### Reproduce a single case
 
@@ -197,7 +197,7 @@ axiomize benchmark
 ```
 
 12 of 12 cases pass on CPython 3.12.10 with numpy 2.5.3 / scipy 1.18.1 at commit
-`eb70a47`. Cases include a deterministic model, a nonlinear ODE, an optimization problem and
+`338bc9e`. Cases include a deterministic model, a nonlinear ODE, an optimization problem and
 a regression fit.
 
 ## 4. Numerical cross-checks in the test suite
@@ -218,7 +218,7 @@ Run them with:
 pytest tests/test_numerical_reference.py tests/test_bayesian_likelihoods.py -q
 ```
 
-Verified `40 passed` at commit `eb70a47` on CPython 3.12.10.
+Verified `40 passed` at commit `338bc9e` on CPython 3.12.10.
 
 ---
 

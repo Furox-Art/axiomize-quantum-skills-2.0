@@ -45,7 +45,7 @@ axiomize benchmark    # install-safe self-test
 axiomize validate --N 1000000
 ```
 
-Verified at version 1.2.0, commit `eb70a47`, CPython 3.12.10:
+Verified at version 1.2.0, commit `338bc9e`, CPython 3.12.10:
 
 ```json
 {"status": "PASS", "passed": 12, "total": 12, ...}
@@ -83,7 +83,10 @@ Full walkthrough: [tutorial.md](tutorial.md).
   human rubric layer is defined but unscored.
 - Arbitrary code and theorem elaboration are not an OS sandbox. See
   [security.md](security.md).
-- The npm package's entry point is currently broken; use the PyPI package.
+- The npm launcher is fixed in the repository but not yet published: npm still serves
+  `2.0.0`, published before the fix, so `npx axiomize-quantum` still fails. `package.json`
+  is pinned to `1.2.0` in lockstep with Python, so the next npm release carries the fix.
+  Use PyPI.
 
 ## Links
 

@@ -13,6 +13,12 @@ Download numbers live on the package pages themselves, where they are always cur
 [PyPI](https://pypi.org/project/axiomize-quantum-skills-2.0/) ·
 [npm](https://www.npmjs.com/package/axiomize-quantum-skills-2.0)
 
+**PyPI is the supported install. npm is behind:** PyPI serves `1.2.0`; the npm registry
+serves `2.0.0`, published before the npm launcher was fixed, so `npx axiomize-quantum`
+still fails. `package.json` is now pinned to `1.2.0` in lockstep with Python and CI
+enforces it, so the next npm release carries the fix. See
+[Honest limits](#honest-limits).
+
 **Documentation:** <https://furox-art.github.io/axiomize-quantum-skills-2.0/>
 
 A scientific modeling engine with explicit units, dimensional and numerical validation,
@@ -147,7 +153,7 @@ axiomize-reason score --evidence 0.9 --verification 0.85
 ```
 
 Every command shown above was executed against `axiomize-quantum-skills-2.0` 1.2.0 at
-commit `eb70a47` on CPython 3.12.10 (Windows). The walkthrough continues in
+commit `338bc9e` on CPython 3.12.10 (Windows). The walkthrough continues in
 [docs/tutorial.md](docs/tutorial.md).
 
 ## Interfaces
@@ -196,7 +202,7 @@ cp -r axiomize-quantum-skills-2.0/skills/quantum-reasoning ~/.config/opencode/sk
 ## Benchmarks
 
 The 25-case corpus is graded in CI by
-`skills/axiomize/tools/benchmark_runner.py`. Result reproduced locally on commit `eb70a47`,
+`skills/axiomize/tools/benchmark_runner.py`. Result reproduced locally on commit `338bc9e`,
 axiomize 1.2.0, CPython 3.12.10 (Windows), numpy 2.5.3 / scipy 1.18.1:
 
 ```bash
@@ -224,9 +230,22 @@ about a wrong model still scores 10.0/10. The human rubric layer described in
   actually installed. Install them with `pip install axiomize-quantum-skills-2.0[full]`.
 - Arbitrary code and theorem elaboration are **not** an OS sandbox. They require explicit
   trust. See [SECURITY.md](SECURITY.md) and [docs/security.md](docs/security.md).
-- The npm package is currently **not** a working entry point: the published `index.js`
-  fails `node --check` with a syntax error, so `npx axiomize-quantum` does not run. Use the
-  PyPI package. This is tracked in the PR that accompanies this README.
+- **The npm launcher is fixed in the repository but the fix is not published yet.** The
+  source is correct as of 1.2.0: `index.js` passes `node --check`, resolves the real CLI
+  module `axiomize.cli`, propagates the child's exit code, and the `files` whitelist keeps
+  the tarball at 6 files / 41 kB instead of the previous 303 files / 2.1 MB. The npm
+  registry still serves `2.0.0`, published before the fix, whose `index.js` is the old
+  syntactically invalid one. So `npx axiomize-quantum` **still fails** until a version
+  carrying the fix is published. `package.json` is now pinned to `1.2.0` in lockstep with
+  Python and CI enforces that, so the next npm release carries the fix.
+  Until then, install from PyPI and use the `axiomize` console script directly.
+
+  Working from a checkout, without waiting for a publish:
+
+  ```bash
+  pip install axiomize-quantum-skills-2.0
+  node bin/axiomize-quantum.js --help      # verified working at 1.2.0
+  ```
 
 ## Documentation
 
