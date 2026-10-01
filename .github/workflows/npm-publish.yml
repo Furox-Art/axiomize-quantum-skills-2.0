@@ -1,33 +1,164 @@
-name: npm Publish  
-  
-on:  
-  workflow_dispatch:  
-  push:  
-    branches: [main]  
-    paths:  
-      - "package.json"  
-      - "index.js"  
-      - "bin/**"  
-  
-concurrency:  
-  group: npm-publish  
-  cancel-in-progress: false  
-  
-permissions:  
-  contents: read  
-  
-jobs:  
-  publish:  
-    runs-on: ubuntu-latest  
-    steps:  
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7  
-  
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4  
-        with:  
-          node-version: "20"  
-          registry-url: "https://registry.npmjs.org"  
-  
-      - name: Publish to npm  
-        run: npm publish --access public  
-        env:  
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }} 
+name: Release (npm)
+
+# Triggered by the same version-bump commit as the PyPI release, never by hand.
+#
+# The previous revision ran on any push touching package.json, index.js or
+# bin/**, and could also be dispatched manually with
+# `workflow_dispatch`. Both paths are gone: an npm publish is a release event,
+# not a side effect of editing a JavaScript file, and the two registries now move
+# together on one version.
+#
+# Authentication is OIDC Trusted Publishing. NPM_TOKEN is no longer read.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      # Exactly the files that define a publishable npm package. A commit that
+      # touches only a workflow or a test must not publish.
+      - "package.json"
+      - "package-lock.json"
+      - "index.js"
+      - "bin/**"
+  # Manual re-run of a *failed* publish is a legitimate operation and is kept.
+  # It cannot double-publish: see the registry gate below, and note that the
+  # concurrency group is not cancellable.
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: "Why this manual publish is needed (recorded in the run)"
+        required: true
+        type: string
+
+concurrency:
+  group: npm-release
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: publish to npm
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: npm
+      url: https://www.npmjs.com/package/axiomize-quantum-skills-2.0
+    permissions:
+      contents: read
+      # Required for OIDC Trusted Publishing. No npm token is read anywhere in
+      # this workflow.
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "22"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Report the reason for a manual run
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        # Quoted as a block scalar: an unquoted `reason: ...` inside a plain
+        # YAML scalar is a mapping, not text.
+        run: |
+          echo "manual publish requested: ${{ inputs.reason }}"
+
+      # The same rule the PyPI release enforces, so the two registries can never
+      # advertise different versions of one product.
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.12"
+      - name: Enforce version lockstep across both registries
+        run: python .github/scripts/version_lockstep.py
+
+      # `npm ci` rather than `npm install`: it installs exactly the tree in
+      # package-lock.json and fails when the two disagree, which `npm install`
+      # does not.
+      - name: Install from the lockfile
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Syntax-check the launcher
+        run: npm run lint
+      - name: Run the npm contract tests
+        run: npm test
+
+      # The launcher only proves anything if the Python CLI it spawns is
+      # importable. Without this the smoke step fails with
+      # `No module named 'axiomize'`, which says nothing about the launcher.
+      - name: Install the Python package the launcher invokes
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install .
+      - name: Smoke the launcher against the installed CLI
+        run: npm run smoke
+
+      # `npm publish` derives both the version and the tarball contents from the
+      # repository, so the registry cannot advance past the checked-out state.
+      - name: Read the version to publish
+        id: pkg
+        run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+
+      # Idempotency guard. `npm view <pkg>@<version>` exits non-zero when the
+      # version is absent, which is the "not yet published" case we want. A
+      # re-run of the same commit therefore exits 0 without uploading, and npm
+      # never sees a duplicate-version error.
+      - name: Check whether this version already exists on the registry
+        id: gate
+        shell: bash
+        run: |
+          set -uo pipefail
+          package="axiomize-quantum-skills-2.0"
+          version="${{ steps.pkg.outputs.version }}"
+          if npm view "${package}@${version}" version > /dev/null 2>&1; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::${package}@${version} is already on the registry; nothing to publish."
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::${package}@${version} is not on the registry; publishing."
+          fi
+          exit 0
+
+      - name: Assert the tarball contents before publishing
+        if: steps.gate.outputs.skip != 'true'
+        run: npm pack --dry-run
+
+      # No `continue-on-error`: a failed npm publish must fail the run. The
+      # previous revision had no error handling at all but also no gate, so a
+      # duplicate version produced a red run nobody could interpret, and a
+      # token failure looked identical to a success.
+      - name: Publish to npm with OIDC Trusted Publishing
+        if: steps.gate.outputs.skip != 'true'
+        run: npm publish --access public --provenance
+
+      - name: Verify the publication is publicly visible
+        if: steps.gate.outputs.skip != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          package="axiomize-quantum-skills-2.0"
+          version="${{ steps.pkg.outputs.version }}"
+          for attempt in 1 2 3 4 5 6; do
+            if npm view "${package}@${version}" version > /dev/null 2>&1; then
+              echo "npm publication verified: ${package}@${version}"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "::error::The upload completed but ${package}@${version} is not publicly visible after 6 attempts."
+          exit 1
+
+      - name: Summarise a no-op run
+        if: steps.gate.outputs.skip == 'true'
+        run: |
+          {
+            echo "### npm release skipped"
+            echo ""
+            echo "\`axiomize-quantum-skills-2.0@${{ steps.pkg.outputs.version }}\` is already published."
+            echo "No upload was attempted. To publish a new version, bump all version"
+            echo "sources together and push:"
+            echo ""
+            echo '```bash'
+            echo "python .github/scripts/version_lockstep.py --bump 1.2.1"
+            echo "```"
+          } >> "$GITHUB_STEP_SUMMARY"

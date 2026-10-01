@@ -1,8 +1,36 @@
 version: 2
 updates:
-  # Only github-actions. There is no pip manifest in this repo , the two
-  # runtime packages the validators need (numpy, scipy) are installed inline
-  # by the CI step, so there is nothing for the pip ecosystem to watch.
+  # The repository does have a pip manifest, contrary to the previous comment:
+  # requirements-test.txt is the file CI installs verbatim, and pyproject.toml
+  # declares the runtime dependencies and the dev extras. Nothing was watching
+  # either, so a security-relevant release in numpy, scipy or z3-solver was only
+  # discovered when pip-audit failed the build.
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    labels:
+      - "dependencies"
+      - "python"
+    commit-message:
+      prefix: "deps"
+    # Lower bounds only, so a bump PR can never raise a floor past what the
+    # pinned CI tools expect. The reviewer still has to accept the new version.
+    allow:
+      - dependency-type: "direct"
+    groups:
+      test-tooling:
+        patterns:
+          - "pytest*"
+          - "mypy"
+          - "ruff"
+          - "pip-audit"
+          - "twine"
+          - "build"
+          - "mkdocs*"
+          - "types-*"
+
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
@@ -12,3 +40,17 @@ updates:
       - "github-actions"
     commit-message:
       prefix: "ci"
+    groups:
+      actions:
+        patterns:
+          - "*"
+
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "javascript"
+    commit-message:
+      prefix: "deps"

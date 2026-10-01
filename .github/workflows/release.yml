@@ -1,4 +1,21 @@
-name: Release
+name: Release (PyPI)
+
+# Triggered by a version bump commit on main, never dispatched by hand.
+#
+# The previous revision fired on any push touching `.github/pypi-release-trigger`
+# and could be re-run from any branch with `workflow_dispatch`, which made an
+# accidental or duplicated publish a one-click operation. Two properties are now
+# structural instead of procedural:
+#
+#   * The workflow only runs on `main`, and only when the trigger file changes.
+#   * The trigger file must name a version that matches every other version
+#     source, and that version must not already exist on PyPI. Both are asserted
+#     by check_release_contract.py and the existence gate below, so a second run
+#     of the same commit exits successfully without uploading anything.
+#
+# Authentication is OIDC Trusted Publishing only. There is no static token path
+# and no `continue-on-error` on the publish step, so an unconfigured publisher
+# fails the run instead of being reported as a success.
 
 on:
   push:
@@ -7,6 +24,9 @@ on:
       - ".github/pypi-release-trigger"
 
 concurrency:
+  # cancel-in-progress is false on purpose: a release must not be interrupted
+  # halfway. Two pushes racing on the same version are serialised instead, and
+  # the second one is stopped by the PyPI existence gate.
   group: pypi-release
   cancel-in-progress: false
 
@@ -15,7 +35,9 @@ permissions:
 
 jobs:
   preflight:
+    name: build and verify
     runs-on: ubuntu-latest
+    timeout-minutes: 40
     outputs:
       package_name: ${{ steps.meta.outputs.name }}
       package_version: ${{ steps.meta.outputs.version }}
@@ -23,8 +45,12 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
-          python-version: "3.11"
+          python-version: "3.12"
+      # Refuses to run anywhere but refs/heads/main, and requires all five version
+      # sources to agree.
       - name: Enforce release version contract
+        run: python .github/scripts/version_lockstep.py
+      - name: Enforce release provenance contract
         run: python .github/scripts/check_release_contract.py
       - name: Resolve package metadata
         id: meta
@@ -40,7 +66,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements-test.txt
-          pip install build twine pip-audit
+          pip install "build==1.4.0" "twine==6.2.0" "pip-audit==2.9.0"
       - name: Validate dependency graph
         run: python -m pip check
       - name: Security contract
@@ -49,14 +75,24 @@ jobs:
         run: python -m pip_audit -r requirements-test.txt
       - name: Source import graph contract
         run: python .github/scripts/import_contract_smoke.py --source
+      - name: Lint
+        run: |
+          python -m pip install "ruff==0.16.9"
+          ruff check .
+      - name: Type-check ratchet
+        run: |
+          python -m pip install "mypy==1.18.2" "types-PyYAML==6.0.12.20250915"
+          python .github/scripts/mypy_ratchet.py
       - name: Install axiomize (editable) for import-based tests
         run: python -m pip install -e . --no-deps
       - name: Run tests
-        run: pytest tests/ -q
+        run: python -m pytest tests/ -q
       - name: Build distributions
         run: python -m build
       - name: Validate distributions
-        run: python -m twine check dist/*
+        run: python -m twine check --strict dist/*
+      - name: Enforce the packaging content contract
+        run: python .github/scripts/package_contents_smoke.py --dist-dir dist
       - name: Install exact release wheel
         run: python -m pip install --force-reinstall dist/*.whl
       - name: Validate installed dependency graph
@@ -77,7 +113,7 @@ jobs:
         run: python .github/scripts/scientific_stress_gate.py
       - name: Quantum reasoning release contract
         run: |
-          pytest tests/test_reasoning_quantum.py tests/test_reasoning_benchmark.py tests/test_reasoning_contracts.py tests/test_reasoning_cli.py -q
+          python -m pytest tests/test_reasoning_quantum.py tests/test_reasoning_benchmark.py tests/test_reasoning_contracts.py tests/test_reasoning_cli.py -q
           axiomize-reason score --evidence 0.9 --verification 0.85
       - name: Real LaTeX console conversion
         shell: bash
@@ -100,6 +136,7 @@ jobs:
   platform-smoke:
     name: release wheel-cli (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -108,7 +145,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
-          python-version: "3.11"
+          python-version: "3.12"
       - name: Enforce release version contract
         run: python .github/scripts/check_release_contract.py
       - name: Build exact wheel
@@ -120,13 +157,18 @@ jobs:
         run: python .github/scripts/platform_wheel_cli_smoke.py --wheel-dir dist
 
   publish:
+    name: publish to PyPI
     needs: [preflight, platform-smoke]
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     environment:
       name: pypi
       url: https://pypi.org/project/${{ needs.preflight.outputs.package_name }}/${{ needs.preflight.outputs.package_version }}/
     permissions:
       contents: write
+      # Required for OIDC Trusted Publishing. This is the entire credential: no
+      # PYPI_API_TOKEN secret is read anywhere in this workflow, so there is no
+      # long-lived token to leak, rotate or misuse.
       id-token: write
     steps:
       - name: Download tested distributions
@@ -134,7 +176,12 @@ jobs:
         with:
           name: python-package-distributions
           path: dist
-      - name: Check whether version already exists on PyPI
+      # The idempotency guard. A re-run of the same commit, a retried job, or a
+      # second push that bumps nothing all land here and exit 0 without
+      # touching PyPI. Publishing the same version twice is otherwise an error,
+      # and the previous `skip-existing: true` masked it behind a
+      # `continue-on-error` that reported success either way.
+      - name: Check whether this version already exists on PyPI
         id: gate
         shell: bash
         run: |
@@ -159,41 +206,21 @@ jobs:
             rm -f "$listing"
           fi
           echo "skip=$found" >> "$GITHUB_OUTPUT"
-      - name: Detect API token fallback
-        id: auth
-        if: steps.gate.outputs.skip != 'true'
-        env:
-          PYPI_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
-        shell: bash
-        run: |
-          if [ -n "$PYPI_TOKEN" ]; then
-            echo "has_token=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "has_token=false" >> "$GITHUB_OUTPUT"
-          fi
-      - name: Publish to PyPI with Trusted Publishing
+      - name: Publish to PyPI with OIDC Trusted Publishing
         id: trusted_publish
         if: steps.gate.outputs.skip != 'true'
         uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # release/v1
         with:
-          skip-existing: true
-        continue-on-error: true
-      - name: Publish to PyPI with API token fallback
-        id: token_publish
-        if: steps.gate.outputs.skip != 'true' && steps.trusted_publish.outcome != 'success' && steps.auth.outputs.has_token == 'true'
-        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # release/v1
-        with:
-          password: ${{ secrets.PYPI_API_TOKEN }}
-          skip-existing: true
-        continue-on-error: true
-      - name: Fail clearly when PyPI authentication is not configured
-        if: steps.gate.outputs.skip != 'true' && steps.trusted_publish.outcome != 'success' && steps.auth.outputs.has_token != 'true'
-        shell: bash
-        run: |
-          echo "::error::PyPI authentication is not configured for this release."
-          echo "::error::Configure a PyPI Trusted Publisher with owner=Furox-Art, repository=axiomize-quantum-skills-2.0, workflow=release.yml, environment=pypi; or define the PYPI_API_TOKEN secret in the pypi environment."
-          exit 1
-      - name: Verify PyPI publication
+          # No `password`, no `user`: the action exchanges the job's OIDC token
+          # for a short-lived upload token. `continue-on-error` is intentionally
+          # absent: a failed publish must fail the run so the version bump can
+          # be inspected and retried, rather than being reported as a green
+          # release that never reached PyPI.
+          packages-dir: dist/
+          print-hash: true
+          attestations: true
+      - name: Verify the publication is publicly visible
+        if: steps.gate.outputs.skip != 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -202,10 +229,6 @@ jobs:
           json_url="https://pypi.org/pypi/${name}/${version}/json"
           simple_url="https://pypi.org/simple/${name}/"
           normalized_name="$(python -c 'import re,sys; print(re.sub(r"[-_.]+", "_", sys.argv[1]))' "$name")"
-          if [ "${{ steps.gate.outputs.skip }}" = "true" ]; then
-            echo "PyPI publication verified before upload gate."
-            exit 0
-          fi
           for attempt in 1 2 3 4 5 6; do
             if curl -sfL "$json_url" > /dev/null; then
               echo "PyPI publication verified through JSON API: $json_url"
@@ -222,11 +245,8 @@ jobs:
             rm -f "$listing"
             sleep 10
           done
-          if [ "${{ steps.trusted_publish.outcome }}" = "success" ] || [ "${{ steps.token_publish.outcome }}" = "success" ]; then
-            echo "::warning::PyPI public index/API propagation is delayed; upload action was accepted by PyPI and completed successfully."
-            exit 0
-          fi
-          echo "::error::Neither an existing PyPI release nor a successful PyPI upload could be verified."
+          echo "::error::The upload completed but ${name} ${version} is not publicly visible after 6 attempts."
+          echo "::error::Check the PyPI project page and the trusted publisher configuration before re-running."
           exit 1
       - name: Create GitHub release
         uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3

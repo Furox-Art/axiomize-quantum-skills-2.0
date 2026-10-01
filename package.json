@@ -1,1 +1,41 @@
-{"name":"axiomize-quantum-skills-2.0","version":"2.0.0","description":"Axiomize 2.0 - scientific modeling engine plus quantum-inspired multi-branch reasoning","main":"index.js","bin":{"axiomize-quantum":"./bin/axiomize-quantum.js"},"scripts":{"test":"echo \"Error: no test specified\" && exit 1"},"keywords":["modeling","simulation","quantum-inspired","multi-branch","scientific-computing"],"author":"Furox-Art","license":"MIT","repository":{"type":"git","url":"git+https://github.com/Furox-Art/axiomize-quantum-skills-2.0.git"},"bugs":{"url":"https://github.com/Furox-Art/axiomize-quantum-skills-2.0/issues"},"homepage":"https://github.com/Furox-Art/axiomize-quantum-skills-2.0#readme"} 
+{
+  "name": "axiomize-quantum-skills-2.0",
+  "version": "1.2.0",
+  "description": "Axiomize 2.0 - scientific modeling engine plus quantum-inspired multi-branch reasoning",
+  "main": "index.js",
+  "bin": {
+    "axiomize-quantum": "./bin/axiomize-quantum.js"
+  },
+  "scripts": {
+    "test": "node --test \".github/tests/**/*.test.js\"",
+    "lint": "node --check index.js && node --check bin/axiomize-quantum.js",
+    "smoke": "node bin/axiomize-quantum.js --help"
+  },
+  "files": [
+    "index.js",
+    "bin/",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "modeling",
+    "simulation",
+    "quantum-inspired",
+    "multi-branch",
+    "scientific-computing"
+  ],
+  "author": "Furox-Art",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Furox-Art/axiomize-quantum-skills-2.0.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Furox-Art/axiomize-quantum-skills-2.0/issues"
+  },
+  "homepage": "https://github.com/Furox-Art/axiomize-quantum-skills-2.0#readme"
+}
