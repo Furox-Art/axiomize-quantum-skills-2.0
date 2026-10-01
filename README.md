@@ -7,7 +7,7 @@ Current package line: **1.2.0**
 ![CI](https://github.com/Furox-Art/axiomize-quantum-skills-2.0/actions/workflows/ci.yml/badge.svg)  
 [![PyPI](https://img.shields.io/pypi/v/axiomize-quantum-skills-2.0)](https://pypi.org/project/axiomize-quantum-skills-2.0/)  
 [![npm](https://img.shields.io/npm/v/axiomize-quantum-skills-2.0)](https://www.npmjs.com/package/axiomize-quantum-skills-2.0)  
-[![Downloads](https://img.shields.io/pypi/dm/axiomize-quantum-skills-2.0)](https://pypi.org/project/axiomize-quantum-skills-2.0/)  
+Download numbers live on the package pages themselves, where they are always current: [PyPI](https://pypi.org/project/axiomize-quantum-skills-2.0/) | [npm](https://www.npmjs.com/package/axiomize-quantum-skills-2.0)  
   
 This is what happens when you combine a scientific modeling engine with a reasoning system that refuses to commit to the first plausible answer.  
   

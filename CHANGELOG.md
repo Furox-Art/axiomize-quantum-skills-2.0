@@ -2,6 +2,18 @@
 
 All notable changes to Axiomize are documented here. Axiomize follows semantic versioning; release claims are tied to exact-wheel CI/release evidence.
 
+## Unreleased
+
+### Fixed
+
+- README no longer shows a PyPI downloads badge. `img.shields.io/pypi/dm/axiomize-quantum-skills-2.0`
+  answers HTTP 200 while rendering `downloads: rate limited by upstream service` (or
+  `downloads: inaccessible`), because shields.io scrapes a third-party download API.
+  The README now links the PyPI and npm project pages, which always answer HTTP 200 and
+  always carry the real numbers. No count is hardcoded. New
+  `tests/test_readme_badges.py` fails if a dynamic download badge or a hand-copied
+  download count reappears.
+
 ## [1.2.0] - 2026-09-30
 
 ### Added
