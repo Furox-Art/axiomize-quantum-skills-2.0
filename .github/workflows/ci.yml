@@ -254,31 +254,23 @@ jobs:
         run: python .github/scripts/coverage_ratchet.py
       - name: Emit the coverage report
         # The previous job declared `files: ./coverage.xml` without ever asking
-        # for an XML report, so Codecov was pointed at a file that did not exist.
+        # for an XML report, so the Codecov step was pointed at a file that did
+        # not exist.
         run: python -m coverage xml
-      - name: Upload coverage to Codecov
-        # Only attempted when a token is configured. Codecov rejects tokenless
-        # uploads with "Token required - not valid tokenless upload", so a
-        # `fail_ci_if_error: true` here made this a required check that could
-        # never pass; `false` would have restored the original bug, where a dead
-        # step reported success. Skipping with a visible notice is the honest
-        # state: the ratchet above is the gate, this is reporting.
-        #
-        # To enable it, add the CODECOV_TOKEN secret to the repository.
-        if: ${{ secrets.CODECOV_TOKEN != '' }}
-        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
-        with:
-          files: ./coverage.xml
-          fail_ci_if_error: true
-          token: ${{ secrets.CODECOV_TOKEN }}
-      - name: Report that Codecov upload was skipped
-        if: ${{ secrets.CODECOV_TOKEN == '' }}
-        run: |
-          echo "::notice::CODECOV_TOKEN is not configured, so the coverage report was not uploaded."
-          echo "::notice::The coverage gate is coverage_ratchet.py; the XML at coverage.xml is available as a build artifact."
-          echo "::notice::Add the CODECOV_TOKEN repository secret to enable reporting."
+      # The Codecov upload is gone rather than repaired, and the reason is worth
+      # recording. This repository has no CODECOV_TOKEN, and Codecov rejects
+      # tokenless uploads with "Token required - not valid tokenless upload", so
+      # the step had never succeeded; it only looked successful because
+      # `fail_ci_if_error: false` swallowed the failure. Making it fatal instead
+      # turns a required status check permanently red for a service the project
+      # does not use, and gating it on `secrets` in a step `if` is not
+      # expressible: the secrets context is unavailable in `if` expressions, and
+      # using it there makes GitHub reject the whole workflow file.
+      #
+      # coverage_ratchet.py is the gate; coverage.xml is published below as a
+      # build artifact. To restore reporting, add the CODECOV_TOKEN secret and
+      # re-add the codecov/codecov-action step with fail_ci_if_error: true.
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        if: ${{ always() }}
         with:
           name: coverage-report
           path: coverage.xml
