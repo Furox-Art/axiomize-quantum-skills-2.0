@@ -23,4 +23,9 @@ build/
 .coverage
 coverage.xml
 htmlcov/
+# Scoped to the repository root: the bare `cov*.txt` pattern also matched
+# .github/coverage-floor.txt, which is a committed CI gate, and silently
+# excluded it from every commit.
 cov*.txt
+!/.github/coverage-floor.txt
+!/.github/mypy-baseline.txt

@@ -1,0 +1,23 @@
+# Branch-coverage floor for the CI `coverage` job.
+#
+# Measured on the Linux runner: 65.25% with the scope declared in
+# [tool.coverage.run] (src/axiomize + skills/axiomize/tools), 3.12, `-m 'not
+# network'`. The value sits below the measurement so a normal run has headroom
+# for platform variance, but the ratchet script (.github/scripts/
+# coverage_ratchet.py) refuses any edit that lowers it, so the number can only
+# move upward.
+#
+# Note this is *lower* than the 68% that the previous job enforced, and that is
+# deliberate: the old 68% was measured against `--cov=axiomize`, which covered
+# 9404 statements and silently excluded the 1315 statements of
+# skills/axiomize/tools/ -- the code behind seven of the nine console entry
+# points. Widening the scope to the code that actually ships necessarily lowers
+# the percentage. The floor is honest about the wider scope, and from here it
+# only goes up.
+#
+# Kept a little below the measurement rather than set to it: coverage is
+# measured on Linux (65.25%) and Windows (65.50%) for identical code, and a floor
+# set to the higher platform would fail the Linux runner on a fresh checkout.
+# Raise it with `python .github/scripts/coverage_ratchet.py --write` once the
+# platforms agree.
+65.00

@@ -83,6 +83,16 @@ jobs:
       - name: Run the npm contract tests
         run: npm test
 
+      # The launcher only proves anything if the Python CLI it spawns is
+      # importable. Without this the smoke step fails with
+      # `No module named 'axiomize'`, which says nothing about the launcher.
+      - name: Install the Python package the launcher invokes
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install .
+      - name: Smoke the launcher against the installed CLI
+        run: npm run smoke
+
       # `npm publish` derives both the version and the tarball contents from the
       # repository, so the registry cannot advance past the checked-out state.
       - name: Read the version to publish
