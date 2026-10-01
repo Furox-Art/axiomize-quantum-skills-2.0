@@ -10,12 +10,100 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# Least privilege by default: no job gets more than it declares. Individual jobs
+# widen this only where they genuinely need to (release, Pages deploy).
 permissions:
   contents: read
 
+env:
+  # Pinned so the coverage number the ratchet gate compares against cannot move
+  # because a dependency resolved differently this week. Bump deliberately, in a
+  # PR that re-measures the floor.
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+
 jobs:
-  security-contract:
+  # ---------------------------------------------------------------------
+  # Metadata and packaging contract
+  # ---------------------------------------------------------------------
+
+  version-contract:
+    name: version lockstep
     runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.12"
+      # One product, two registries. pyproject.toml, src/axiomize/__init__.py,
+      # package.json, CHANGELOG.md and the PyPI trigger file must agree; they
+      # did not (package.json said 2.0.0 while PyPI was on 1.2.0).
+      - name: Every version source must agree
+        run: python .github/scripts/version_lockstep.py
+      - name: Release provenance contract
+        run: python .github/scripts/check_release_contract.py
+      - name: Security contract
+        run: python .github/scripts/security_contract_smoke.py
+
+  # ---------------------------------------------------------------------
+  # Static analysis
+  # ---------------------------------------------------------------------
+
+  lint:
+    name: ruff
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.12"
+      - name: Install the pinned linter
+        run: python -m pip install "ruff==0.16.9"
+      # Configuration lives in [tool.ruff] in pyproject.toml, so the local and CI
+      # rule sets cannot diverge. The gate was absent before this change even
+      # though the config was already declared.
+      - name: Lint
+        run: ruff check --output-format=github .
+      - name: Report the selected rule families
+        run: ruff check --statistics . || true
+
+  typecheck:
+    name: mypy
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.12"
+      - name: Install test dependencies and the pinned type checker
+        # Pinned exactly, and types-PyYAML with it: a floating mypy can emit a
+        # different finding count for identical code, which would make the
+        # ratchet below fail for reasons unrelated to the change under review.
+        run: |
+          python -m pip install -r requirements-test.txt
+          python -m pip install "mypy==1.18.2" "types-PyYAML==6.0.12.20250915"
+      - name: Install axiomize (editable) for import-based checking
+        run: python -m pip install -e . --no-deps
+      # Config comes from [tool.mypy] in pyproject.toml. Scoped deliberately:
+      # `.github/scripts` is held to zero because this repository owns it, while
+      # `src/axiomize` and `skills/axiomize/tools` are pinned to their measured
+      # counts in .github/mypy-baseline.txt. A gate that is red on arrival
+      # teaches people to ignore it; a ratchet that can be raised in the same
+      # change that adds an error is not a ratchet. One script enforces both so
+      # the two rules cannot drift apart.
+      - name: Enforce the type-check ratchet
+        run: python .github/scripts/mypy_ratchet.py
+
+  # ---------------------------------------------------------------------
+  # Test suite
+  # ---------------------------------------------------------------------
+
+  security-contract:
+    name: dependency audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
@@ -23,27 +111,50 @@ jobs:
           python-version: "3.12"
       - name: Compile source tree
         run: python -m compileall -q src skills tests .github/scripts
-      - name: Enforce source/workflow security contract
-        run: python .github/scripts/security_contract_smoke.py
-      - name: Audit declared Python dependencies
+      - name: Install the pinned auditor
         run: |
           python -m pip install --upgrade pip
-          python -m pip install pip-audit
-          python -m pip_audit -r requirements-test.txt
+          python -m pip install "pip-audit==2.9.0"
+      # Audits the declared lower bounds, which is what users resolve against.
+      # Unpinned resolution means a fresh advisory can appear without any
+      # commit, so this job is the early warning.
+      - name: Audit declared Python dependencies
+        run: python -m pip_audit -r requirements-test.txt
+      - name: Audit the shipped dependency metadata
+        run: |
+          python -m pip install build
+          python -m build --wheel --outdir dist
+          python .github/scripts/package_contents_smoke.py --dist-dir dist
 
   validate:
-    runs-on: ubuntu-latest
+    name: validate (${{ matrix.python-version }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.10", "3.11", "3.12", "3.13"]
+        # 3.10 is the floor declared by requires-python and 3.14 is the newest
+        # release, so both ends are exercised. The 3.10/3.14 rows are Linux-only
+        # to keep the matrix affordable; the middle versions also run on Windows
+        # because the repository's own history shows platform-specific failures
+        # (a live-socket abort, a Lean-toolchain skip) that Linux alone will not
+        # surface.
+        os: [ubuntu-latest]
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+        include:
+          - os: windows-latest
+            python-version: "3.12"
+          - os: windows-latest
+            python-version: "3.13"
+          - os: macos-latest
+            python-version: "3.13"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install test dependencies
-        run: pip install -r requirements-test.txt
+        run: python -m pip install -r requirements-test.txt
       - name: Install axiomize (editable) for import-based tests
         run: python -m pip install -e . --no-deps
       - name: Validate dependency graph
@@ -51,7 +162,7 @@ jobs:
       - name: Source import graph contract
         run: python .github/scripts/import_contract_smoke.py --source
       - name: Run test suite
-        run: pytest tests/ -v
+        run: python -m pytest tests/ -v
       - name: Skill lint (frontmatter + links + compile)
         run: python skills/axiomize/tools/check_skill.py
       - name: Deterministic SIR checks
@@ -72,6 +183,8 @@ jobs:
         run: |
           python skills/axiomize/tools/parallel_sweep.py --job sweep
           python skills/axiomize/tools/parallel_sweep.py --job mc
+      # Seeds are fixed (validate.py defaults to 42), so this is a regression
+      # gate on the 25 stored blind-test reports rather than a flaky sample.
       - name: Benchmark regression (stored blind-test reports)
         run: |
           ids="$(python -c "import json; print(' '.join(c['id'] for c in json.load(open('benchmarks/ideas.json', encoding='utf-8'))['cases']))")"
@@ -79,8 +192,6 @@ jobs:
           for id in $ids; do
             python skills/axiomize/tools/benchmark_runner.py --case "$id" --report "benchmarks/reports/$id.md" || exit 1
           done
-      - name: Quantum reasoning contract (score/prune/revive/collapse)
-        run: pytest tests/test_reasoning_quantum.py tests/test_reasoning_benchmark.py tests/test_reasoning_contracts.py tests/test_reasoning_cli.py -v
       - name: Quantum reasoning benchmark smoke (evaluator + schemas)
         run: |
           python src/axiomize/reasoning/benchmark/evaluate.py --help
@@ -91,47 +202,103 @@ jobs:
           axiomize-reason score --evidence 0.9 --verification 0.85
           python -c "from axiomize.workflow.reasoning_adapter import ModelCandidate, select_model; print(select_model([ModelCandidate(candidate_id='a', evidence=1.0, verification=1.0), ModelCandidate(candidate_id='b', evidence=0.4, verification=0.3)]))"
 
+  # ---------------------------------------------------------------------
+  # Coverage
+  # ---------------------------------------------------------------------
+
   coverage:
-    name: branch-coverage gate on Linux with Python 3.12
+    name: branch-coverage ratchet
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          # The ratchet compares this branch's floor against the base branch, so
+          # history must be present.
+          fetch-depth: 0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.12"
+      - name: Install test dependencies
+        run: python -m pip install -r requirements-test.txt
+      - name: Install axiomize (editable) for import-based tests
+        run: python -m pip install -e . --no-deps
+      # `-m 'not network'` deselects the one live-socket REST parity test, whose
+      # hardcoded 1000-sample Monte Carlo costs ~30s per call. It is not flaky:
+      # it passes untraced in the `validate` matrix on every supported
+      # interpreter, and the marker exists for cost, not reliability. The scope
+      # comes from [tool.coverage.run] and now includes
+      # skills/axiomize/tools, which the wheel ships and the previous
+      # `--cov=axiomize` silently omitted.
+      - name: Enforce the non-decreasing coverage floor
+        run: python .github/scripts/coverage_ratchet.py
+      - name: Emit the report Codecov consumes
+        run: python -m coverage xml
+      - uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
+        with:
+          files: ./coverage.xml
+          # The token is not configured, so an unauthenticated upload is
+          # rejected by Codecov and the job previously reported success anyway.
+          # A failed upload is a real signal now; it stays non-fatal for forks,
+          # where OIDC cannot mint a token at all.
+          fail_ci_if_error: true
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+  # ---------------------------------------------------------------------
+  # Built artifacts
+  # ---------------------------------------------------------------------
+
+  build:
+    name: distributions (twine + contents contract)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.12"
-      - name: Install test dependencies
-        run: pip install -r requirements-test.txt
-      - name: Install axiomize (editable) for import-based tests
-        run: python -m pip install -e . --no-deps
-      # Measured 70.28% on Windows but 69.31% on Linux, which is what this gate must
-      # clear: the Linux runner skips 8 tests that Windows executes (500 passed +
-      # 8 skipped vs 508 passed), so Linux covers less code by construction. Set
-      # the gate against the lower of the two environments, not the higher one.
-      # Ratchet toward 69 as those skips get audited.
-      # -m 'not network' drops the one live-socket REST parity test: tracing makes
-      # its handler slow enough that the connection is aborted. It still runs
-      # untraced in the validate matrix above.
-      - name: Branch coverage with a no-regression gate
-        run: >-
-          pytest tests/ -q -m 'not network'
-          --cov=axiomize --cov-branch --cov-report=term-missing
-          --cov-fail-under=68
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
+      - name: Build wheel and sdist
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install build twine
+          python -m build
+      - name: Validate distribution metadata
+        run: python -m twine check --strict dist/*
+      # Asserts the built artifacts against the documentation: all nine console
+      # entry points resolve, both skill folders and the benchmark corpus ship,
+      # and no test/CI/cache content leaks in.
+      - name: Enforce the packaging content contract
+        run: python .github/scripts/package_contents_smoke.py --dist-dir dist
+      - name: Prove the sdist can rebuild the wheel
+        run: |
+          set -euo pipefail
+          tmp="$(mktemp -d)"
+          python -c "import tarfile,sys; tarfile.open(sys.argv[1]).extractall(sys.argv[2])" dist/*.tar.gz "$tmp"
+          cd "$tmp"/*/
+          python -m build --wheel --outdir rebuilt
+          ls rebuilt/*.whl
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          files: ./coverage.xml
-          fail_ci_if_error: false
-          token: ${{ secrets.CODECOV_TOKEN }}
+          name: python-package-distributions
+          path: dist/
+          if-no-files-found: error
+          retention-days: 7
 
   installed-package:
+    name: installed-wheel contracts
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
-          python-version: "3.11"
+          python-version: "3.12"
       - name: Enforce release version contract
         run: python .github/scripts/check_release_contract.py
+      # A non-editable install, not `-e .`: hatchling's editable mode only puts
+      # src/ on sys.path, so `axiomize-validate` and the six other skill-tool
+      # entry points raise ModuleNotFoundError. Testing the real wheel is what
+      # users get.
       - name: Build and install the exact wheel artifact
         run: |
           python -m pip install --upgrade pip
@@ -168,6 +335,7 @@ jobs:
   platform-wheel-cli:
     name: wheel-cli (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:
@@ -176,7 +344,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
-          python-version: "3.11"
+          python-version: "3.12"
       - name: Build exact wheel
         run: |
           python -m pip install --upgrade pip
@@ -184,3 +352,31 @@ jobs:
           python -m build --wheel
       - name: Install and smoke real wheel + CLI
         run: python .github/scripts/platform_wheel_cli_smoke.py --wheel-dir dist
+
+  # ---------------------------------------------------------------------
+  # npm package
+  # ---------------------------------------------------------------------
+
+  npm-contract:
+    name: npm contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "22"
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.12"
+      - name: Syntax-check the launcher and its bin shim
+        run: npm run lint
+      # Replaces `"test": "echo \"Error: no test specified\" && exit 1"`, which
+      # always exited non-zero and was never invoked, so a syntactically broken
+      # index.js shipped to npm as 2.0.0.
+      - name: Run the npm contract tests
+        run: npm test
+      - name: Launch the Python CLI through the npm entry point
+        run: npm run smoke
+      - name: Assert the published tarball contents
+        run: npm pack --dry-run

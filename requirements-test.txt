@@ -11,14 +11,29 @@ numpy>=1.24
 scipy>=1.10
 
 # Required by the scientific engine.
+#
+# The z3-solver pins must stay identical to the two markers in pyproject.toml.
+# They were not: pyproject capped the darwin branch at `<5` because z3-solver
+# ships no macOS wheel for 5.x, while this file had a bare `>=4.12`. A macOS
+# runner therefore resolved 5.x here, and the `pip check` step in the validate
+# matrix then failed against the installed distribution's own requirement. The
+# markers are duplicated rather than shared because a requirements file cannot
+# import from pyproject; the version-contract job exists to keep the pair
+# honest.
+z3-solver>=4.13,<5; sys_platform == 'darwin'
+z3-solver>=4.12; sys_platform != 'darwin'
 sympy>=1.12
 networkx>=3.0
 statsmodels>=0.14
 matplotlib>=3.7
-z3-solver>=4.12
 control>=0.10
 cvxpy>=1.5
 casadi>=3.6
+
+# Parses mkdocs.yml in .github/scripts/check_docs_nav.py, which fails the Pages
+# build when a docs/ page is not reachable from the navigation. A runtime
+# dependency of the package, so it is listed in pyproject.toml too.
+PyYAML>=6.0
 
 # Test runner , CI runs `pytest` to execute the test suite. Without this the
 # test job fails immediately with "pytest: command not found" before any test

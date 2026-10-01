@@ -1,0 +1,23 @@
+# Type-check ratchet baselines.
+#
+# Format: one "<target> <max findings>" pair per line. Comments and blank lines
+# are ignored. Read by .github/scripts/mypy_ratchet.py, which fails when a
+# target exceeds its number and passes when it is at or below it.
+#
+# `.github/scripts` is NOT listed here: it is held to zero by a hard gate,
+# because it is code this repository's CI owns.
+#
+# These numbers are the state of code owned by the library change stream. They
+# may fall as real errors are fixed. They may not rise: doing that in the same
+# change that introduces a new error is how a ratchet stops being a ratchet.
+#
+# Measured with mypy 1.18.2, python_version = "3.12" (see [tool.mypy] in
+# pyproject.toml), with types-PyYAML installed. Re-measure with:
+#   python .github/scripts/mypy_ratchet.py
+
+# Shadowed re-imports in general_engine.py, platform-specific `resource`
+# attributes in sandbox.py, and numpy/Any narrowing in the shipped engine.
+src/axiomize 41
+
+# Unpacking a heterogeneous tuple at validate.py:116.
+skills/axiomize/tools 2
