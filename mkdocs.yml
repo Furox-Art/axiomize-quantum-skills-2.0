@@ -1,14 +1,51 @@
 site_name: Axiomize Quantum Skills 2.0
-site_description: Scientific modeling plus quantum-inspired multi-branch reasoning for AI agents, model selection, parameter estimation, sensitivity analysis, uncertainty quantification, Bayesian and causal reasoning, and reproducible research.
+site_description: Scientific modeling plus quantum-inspired multi-branch reasoning for AI agents - model selection, parameter estimation, sensitivity analysis, uncertainty quantification, Bayesian and causal reasoning, and reproducible research.
+# site_url makes mkdocs emit a populated sitemap.xml. Without it the build succeeds but
+# publishes an empty <urlset/>, which is invisible to crawlers. Keep in sync with
+# repository homepage and pyproject [project.urls] Documentation.
+site_url: https://furox-art.github.io/axiomize-quantum-skills-2.0/
 repo_url: https://github.com/Furox-Art/axiomize-quantum-skills-2.0
+repo_name: Furox-Art/axiomize-quantum-skills-2.0
+edit_uri: edit/main/docs/
+copyright: MIT licensed - Copyright (c) 2026 Furkan
+
 theme:
   name: material
   palette:
     primary: indigo
+  features:
+    - navigation.sections
+    - navigation.top
+    - content.code.copy
+
+plugins:
+  - search
+
 nav:
   - Home: index.md
-  - Adaptive workflow: adaptive-workflow.md
-  - Workflow & lenses: skill.md
-  - Rigor ladder: rigor.md
-  - Archetypes: archetypes.md
-  - Example gallery: example-gallery.md
+  - Getting started:
+      - Tutorial: tutorial.md
+      - Worked examples (sketches): worked-examples.md
+  - Workflow and lenses:
+      - Workflow and lenses (staged): skill.md
+      - Adaptive workflow: adaptive-workflow.md
+      - Rigor ladder: rigor.md
+      - Archetypes: archetypes.md
+      - Example index (staged): examples.md
+  - Examples and evidence:
+      - Example gallery: example-gallery.md
+      - Worked example sketches: worked-examples.md
+      - Benchmark results: benchmark-results.md
+  - Using Axiomize:
+      - Integrations (MCP, REST, CLI): integrations.md
+      - Portable export: portable-export.md
+  - Security:
+      - Security model: security.md
+      - Security non-goals: security-non-goals.md
+      - Security versioning: security-versioning.md
+      - Security CI contract: security-ci-contract.md
+      - Security maintenance: security-maintenance.md
+      - Security release checklist: security-release-checklist.md
+      - Audit record - 1.11.2 hardening: security-audit-1.11.2.md
+  - Project:
+      - Publishing checklist: publishing-checklist.md
