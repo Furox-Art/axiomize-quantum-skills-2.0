@@ -116,10 +116,20 @@ class TestREST:
         thread.start()
         return server
 
+    @staticmethod
+    def _auth(server):
+        # start_server always installs a token (generating one when the caller
+        # supplies none), so every request must present it.
+        return {"Authorization": f"Bearer {server.auth_token}"}
+
     def test_get_tools(self):
         server = self._server()
         try:
-            with urllib.request.urlopen(f"http://127.0.0.1:{server.server_address[1]}/v1/tools") as response:
+            request = urllib.request.Request(
+                f"http://127.0.0.1:{server.server_address[1]}/v1/tools",
+                headers=self._auth(server),
+            )
+            with urllib.request.urlopen(request) as response:
                 assert response.status == 200
         finally:
             server.shutdown()
@@ -130,7 +140,7 @@ class TestREST:
             request = urllib.request.Request(
                 f"http://127.0.0.1:{server.server_address[1]}/v1/solve",
                 data=json.dumps({"N": 100000}).encode(),
-                headers={"Content-Type": "application/json"},
+                headers={"Content-Type": "application/json", **self._auth(server)},
                 method="POST",
             )
             with urllib.request.urlopen(request) as response:
@@ -142,8 +152,12 @@ class TestREST:
     def test_unknown_route_is_404(self):
         server = self._server()
         try:
+            request = urllib.request.Request(
+                f"http://127.0.0.1:{server.server_address[1]}/nope",
+                headers=self._auth(server),
+            )
             with pytest.raises(urllib.error.HTTPError) as exc:
-                urllib.request.urlopen(f"http://127.0.0.1:{server.server_address[1]}/nope")
+                urllib.request.urlopen(request)
             assert exc.value.code == 404
         finally:
             server.shutdown()

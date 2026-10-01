@@ -71,14 +71,18 @@ _REST_TIMEOUT = 300.0
 _REST_ATTEMPTS = 3
 
 
-def _rest_post(port: int, path: str, payload: dict) -> tuple[int, dict]:
+def _rest_post(port: int, path: str, payload: dict, token: str | None = None) -> tuple[int, dict]:
     encoded = json.dumps(payload).encode("utf-8")
+    headers = {"Content-Type": "application/json"}
+    if token is not None:
+        # start_server always installs a token, so mutating requests carry it.
+        headers["Authorization"] = f"Bearer {token}"
     last: Exception | None = None
     for _ in range(_REST_ATTEMPTS):
         req = urllib.request.Request(
             f"http://127.0.0.1:{port}{path}",
             data=encoded,
-            headers={"Content-Type": "application/json"},
+            headers=headers,
             method="POST",
         )
         try:
@@ -153,7 +157,7 @@ def test_rest_solve_matches_core_service_live():
     thr = threading.Thread(target=srv.serve_forever, daemon=True)
     thr.start()
     try:
-        code, body = _rest_post(port, "/solve", dict(PAR))
+        code, body = _rest_post(port, "/solve", dict(PAR), token=srv.auth_token)
         assert code == 200, f"REST /solve HTTP {code}: {body}"
         assert body == services.solve_sir_service(dict(PAR))
     finally:
@@ -229,6 +233,7 @@ def test_rest_sensitivity_route_exists_live():
         code, body = _rest_post(
             port, "/sensitivity",
             {"params": {"beta": 0.3, "gamma": 0.1}, "N": 100000.0, "I0": 10.0},
+            token=srv.auth_token,
         )
         assert code == 200, (
             f"PARITE KIRIK (REST sensitivity): HTTP {code}: {body} "

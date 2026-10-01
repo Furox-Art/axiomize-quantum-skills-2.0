@@ -4,10 +4,35 @@ Stdlib-only HTTP layer over shared application services. Legacy SIR/logistic
 payloads remain supported while Model IR payloads use the general engine.
 
 Security boundary:
-- localhost is the default and requires no token;
+- the bind defaults to loopback (127.0.0.1);
+- **every request requires a bearer token, including on loopback**;
 - non-loopback binding requires *both* ``allow_remote=True`` and an auth token;
 - request bodies, concurrency, connection time and run-file access are bounded;
 - run identifiers are confined beneath a configured run root.
+
+Why every request is authenticated, even on loopback
+------------------------------------------------------
+A loopback bind is not a private channel. Any process on the host, and any web
+page the user has open, can send a request to ``http://127.0.0.1:<port>``. A
+browser refuses to *read* a cross-origin response, but it will happily *send* a
+"simple" request whose ``Content-Type`` is ``text/plain`` without any preflight,
+and it will not attach an ``Authorization`` header cross-origin at all. This
+API exposes solve, fit, falsify and approval-gated Monte Carlo routes, so
+leaving them credential-free on loopback made them drivable from a web page.
+
+Two independent gates close that:
+
+1. ``start_server`` never returns a server without a token. When the operator
+   supplies none, a 256-bit token is minted and exposed as
+   ``server.generated_token``; ``axiomize serve`` prints it to stderr.
+2. ``do_POST`` refuses any request whose ``Content-Type`` is a CORS "simple"
+   value before it compares credentials, so a forged cross-origin request is
+   rejected as malformed.
+
+``do_GET`` requires the same token, so run contents and recorded results are not
+readable by another local process or user account. Constructing
+``BoundedThreadingHTTPServer`` directly with ``auth_token=None`` fails closed on
+mutating routes.
 """
 
 from __future__ import annotations
@@ -15,6 +40,7 @@ from __future__ import annotations
 import hmac
 import ipaddress
 import json
+import secrets
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -26,6 +52,21 @@ from axiomize.runs.state import RunState, resolve_run_directory
 
 _MAX_CONCURRENT_REQUESTS = 32
 _DEFAULT_CONNECTION_TIMEOUT_S = 30.0
+
+# Token generated when the operator did not supply one. 32 random bytes is 256
+# bits of entropy, rendered as 43 urlsafe-base64 characters.
+_GENERATED_TOKEN_BYTES = 32
+
+# Content types a browser can send cross-origin without a CORS preflight. A
+# request carrying one of these did not come from a JSON API client, so it is
+# refused before authentication is even considered.
+_CSRF_SIMPLE_CONTENT_TYPES = frozenset({
+    "text/plain",
+    "application/x-www-form-urlencoded",
+    "multipart/form-data",
+    "text/html",
+})
+_JSON_CONTENT_TYPE = "application/json"
 
 
 class RequestTooLarge(ValueError):
@@ -71,6 +112,23 @@ def _send(handler: BaseHTTPRequestHandler, code: int, payload: Any) -> None:
     handler.wfile.write(body)
 
 
+def _content_type(handler: BaseHTTPRequestHandler) -> str:
+    raw = handler.headers.get("Content-Type", "") or ""
+    return raw.split(";", 1)[0].strip().lower()
+
+
+def _is_cross_origin_simple(handler: BaseHTTPRequestHandler) -> bool:
+    """True when the request shape is one a web page can forge cross-origin.
+
+    A browser attaches no ``Authorization`` header to a cross-origin request
+    without first completing a CORS preflight, and it will not preflight a
+    request whose ``Content-Type`` is one of the three "simple" values. So a
+    cross-origin forging attempt is recognisable by its content type alone, and
+    this API only ever speaks JSON.
+    """
+    return _content_type(handler) in _CSRF_SIMPLE_CONTENT_TYPES
+
+
 def _strip_api_prefix(path: str) -> str:
     return path[3:] if path.startswith("/v1/") else path
 
@@ -102,12 +160,17 @@ class BoundedThreadingHTTPServer(ThreadingHTTPServer):
         auth_token: str | None,
         max_concurrent_requests: int,
         connection_timeout_s: float,
+        generated_token: str | None = None,
     ) -> None:
         super().__init__(server_address, handler_class)
         self.run_root = run_root.resolve()
         self.auth_token = auth_token
         self.connection_timeout_s = float(connection_timeout_s)
         self._request_slots = threading.BoundedSemaphore(max_concurrent_requests)
+        # Non-None only when Axiomize minted the token itself because the
+        # operator did not supply one. Callers read it to authenticate; it is
+        # never written to a response body or a log line by this module.
+        self.generated_token = generated_token
 
     def get_request(self) -> tuple[Any, Any]:
         request, client_address = super().get_request()
@@ -164,6 +227,32 @@ class Handler(BaseHTTPRequestHandler):
         _send(self, 401, {"error": "unauthorized"})
         return False
 
+    def _require_write_authorized(self) -> bool:
+        """Authenticate a mutating request.
+
+        Writes are gated on a token even when the server is bound to loopback
+        and no token was configured, because :meth:`start_server` always mints
+        one. The order matters: the content-type check runs first so a forged
+        cross-origin request is rejected as malformed before any credential
+        comparison happens.
+        """
+        if _is_cross_origin_simple(self):
+            _send(self, 415, {
+                "error": (
+                    f"unsupported Content-Type; this API accepts {_JSON_CONTENT_TYPE} only"
+                )
+            })
+            return False
+        if self._server.auth_token is None:
+            # Only reachable if a caller constructed the server directly and
+            # bypassed start_server. Fail closed rather than serving an
+            # unauthenticated mutating surface.
+            _send(self, 401, {
+                "error": "mutating routes require an auth token; start the server with auth_token"
+            })
+            return False
+        return self._require_authorized()
+
     def _load_run(self, run_id: str) -> RunState:
         return RunState.load_under_root(self._server.run_root, unquote(run_id))
 
@@ -193,7 +282,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self) -> None:
         from axiomize.application import advanced_services, general_services, services, surrogate_services
 
-        if not self._require_authorized():
+        if not self._require_write_authorized():
             return
         path = _strip_api_prefix(urlparse(self.path).path)
         try:
@@ -205,13 +294,13 @@ class Handler(BaseHTTPRequestHandler):
             elif path == "/clean-data":
                 _send(self, 200, services.clean_data_service(payload))
             elif path == "/compare-runs":
-                confined = dict(payload)
+                # Percent-decode the untrusted identifiers in the transport, then
+                # let the service apply run-root confinement so the guard lives
+                # with the filesystem access rather than only at the edge.
+                decoded = dict(payload)
                 for field in ("before_dir", "after_dir"):
-                    raw = str(confined.get(field, "")).strip()
-                    if not raw:
-                        raise ValueError(f"{field} is required")
-                    confined[field] = str(resolve_run_directory(self._server.run_root, unquote(raw)))
-                _send(self, 200, services.compare_runs_service(confined))
+                    decoded[field] = unquote(str(decoded.get(field, "")))
+                _send(self, 200, services.compare_runs_service(decoded, run_root=self._server.run_root))
             elif path == "/model":
                 _send(self, 200, general_services.model_plan_service(payload))
             elif path in ("/solve", "/simulate"):
@@ -287,6 +376,14 @@ def start_server(
     max_concurrent_requests: int = _MAX_CONCURRENT_REQUESTS,
     connection_timeout_s: float = _DEFAULT_CONNECTION_TIMEOUT_S,
 ) -> BoundedThreadingHTTPServer:
+    """Start the REST server, defaulting to a loopback bind with a token.
+
+    Loopback binding with no operator-supplied token is no longer a
+    no-authentication mode: a 256-bit token is minted and attached to the
+    returned server as ``generated_token``. Mutating requests must present it.
+    This keeps a same-host web page from driving the solve/fit/falsify and
+    Monte Carlo routes through a "simple" cross-origin request.
+    """
     host = str(host).strip()
     if not host:
         raise ValueError("host must be non-empty")
@@ -307,9 +404,18 @@ def start_server(
         raise ValueError("connection_timeout_s must be numeric") from exc
     if not 1.0 <= connection_timeout_s <= 300.0:
         raise ValueError("connection_timeout_s must be between 1 and 300 seconds")
+
+    generated: str | None = None
+    effective_token = auth_token
+    if effective_token is None:
+        # Fail closed: never leave the mutating surface unauthenticated.
+        generated = secrets.token_urlsafe(_GENERATED_TOKEN_BYTES)
+        effective_token = generated
+
     root = Path(run_root).expanduser().resolve()
     return BoundedThreadingHTTPServer(
-        (host, port), Handler, run_root=root, auth_token=auth_token,
+        (host, port), Handler, run_root=root, auth_token=effective_token,
         max_concurrent_requests=max_concurrent_requests,
         connection_timeout_s=connection_timeout_s,
+        generated_token=generated,
     )

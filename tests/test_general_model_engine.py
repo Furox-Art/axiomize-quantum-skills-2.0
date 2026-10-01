@@ -210,15 +210,17 @@ def test_general_model_rest_surface() -> None:
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     try:
-        body = json.dumps({
-            "model_ir": decay_model(k=0.5).to_dict(),
-            "t_span": [0.0, 1.0],
-            "points": 20,
-        }).encode("utf-8")
         request = urllib.request.Request(
             f"http://127.0.0.1:{server.server_address[1]}/v1/simulate",
-            data=body,
-            headers={"Content-Type": "application/json"},
+            data=json.dumps({
+                "model_ir": decay_model(k=0.5).to_dict(),
+                "t_span": [0.0, 1.0],
+                "points": 20,
+            }).encode("utf-8"),
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {server.auth_token}",
+            },
             method="POST",
         )
         with urllib.request.urlopen(request, timeout=10) as response:
