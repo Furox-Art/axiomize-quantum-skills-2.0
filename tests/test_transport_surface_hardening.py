@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import io
 import json
+import os
 import tarfile
 import threading
 import urllib.error
@@ -198,8 +199,50 @@ def test_alternate_token_header_is_accepted(tmp_path: Path) -> None:
         server.server_close()
 
 
+def test_read_gating_follows_whether_the_operator_supplied_a_token(tmp_path: Path) -> None:
+    """A generated token protects writes only; an operator token protects reads.
+
+    The release smoke contract in .github/scripts does an unauthenticated
+    GET /v1/capabilities, so read gating must stay opt-in via an explicit
+    operator token. Writes are gated either way.
+    """
+    generated = _start(tmp_path)
+    operator = _start(tmp_path, auth_token="an-operator-chosen-token")
+    try:
+        assert generated.generated_token is not None
+        assert generated.require_token_for_reads is False
+        assert operator.generated_token is None
+        assert operator.require_token_for_reads is True
+
+        # Generated token: reads open, writes closed.
+        assert _get(generated, "/v1/tools") == 200
+        assert _post(generated, "/v1/solve", _SOLVE_PAYLOAD)[0] == 401
+        assert _post(generated, "/v1/solve", _SOLVE_PAYLOAD, token=generated.auth_token)[0] == 200
+
+        # Operator token: reads and writes both closed.
+        assert _get(operator, "/v1/tools") == 401
+        assert _get(operator, "/v1/tools", token=operator.auth_token) == 200
+        assert _post(operator, "/v1/solve", _SOLVE_PAYLOAD, token=operator.auth_token)[0] == 200
+    finally:
+        for server in (generated, operator):
+            server.shutdown()
+            server.server_close()
+
+
+def test_read_gating_can_be_forced_on_with_a_generated_token(tmp_path: Path) -> None:
+    server = _start(tmp_path, require_token_for_reads=True)
+    try:
+        assert server.generated_token is not None
+        assert server.require_token_for_reads is True
+        assert _get(server, "/v1/tools") == 401
+        assert _get(server, "/v1/tools", token=server.auth_token) == 200
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
 def test_unauthenticated_get_is_rejected(tmp_path: Path) -> None:
-    server = _start(tmp_path)
+    server = _start(tmp_path, auth_token="an-operator-chosen-token")
     try:
         assert _get(server, "/v1/tools") == 401
         assert _get(server, "/v1/tools", token=server.auth_token) == 200
@@ -264,7 +307,7 @@ def test_compare_runs_service_confines_absolute_paths(tmp_path: Path) -> None:
         )
 
 
-@pytest.mark.parametrize("run_id", ["../outside", "..\\outside", "a/../../outside"])
+@pytest.mark.parametrize("run_id", ["../outside", "a/../../outside", "../../etc"])
 def test_compare_runs_service_confines_traversal(tmp_path: Path, run_id: str) -> None:
     from axiomize.application.services import compare_runs_service
     from axiomize.runs.state import RunState
@@ -275,6 +318,36 @@ def test_compare_runs_service_confines_traversal(tmp_path: Path, run_id: str) ->
 
     with pytest.raises(ValueError, match="escapes the configured run root"):
         compare_runs_service({"before_dir": run_id, "after_dir": run_id}, run_root=root)
+
+
+@pytest.mark.skipif(os.name != "nt", reason="backslash is a separator only on Windows")
+def test_compare_runs_service_confines_windows_separator_traversal(tmp_path: Path) -> None:
+    from axiomize.application.services import compare_runs_service
+
+    root = tmp_path / "root"
+    root.mkdir()
+    with pytest.raises(ValueError, match="escapes the configured run root"):
+        compare_runs_service(
+            {"before_dir": "..\\outside", "after_dir": "..\\outside"}, run_root=root
+        )
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX treats a backslash as an ordinary filename character")
+def test_posix_backslash_is_confined_as_a_filename_not_a_traversal(tmp_path: Path) -> None:
+    """On POSIX ``..\\outside`` is one filename, not a parent reference.
+
+    The guard must confine it inside the root rather than reject it, so this
+    pins the platform-specific behaviour in both directions.
+    """
+    from axiomize.runs.state import RunState, resolve_run_directory
+
+    root = tmp_path / "root"
+    root.mkdir()
+    resolved = resolve_run_directory(root, "..\\outside")
+    assert resolved.parent == root
+    assert resolved.name == "..\\outside"
+    with pytest.raises(ValueError, match="run.json"):
+        RunState.load(resolved)
 
 
 def test_compare_runs_service_confines_nul_bytes(tmp_path: Path) -> None:

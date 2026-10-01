@@ -5,13 +5,14 @@ payloads remain supported while Model IR payloads use the general engine.
 
 Security boundary:
 - the bind defaults to loopback (127.0.0.1);
-- **every request requires a bearer token, including on loopback**;
+- **every mutating request requires a bearer token, including on loopback**;
+- read routes are gated whenever the operator supplied their own token;
 - non-loopback binding requires *both* ``allow_remote=True`` and an auth token;
 - request bodies, concurrency, connection time and run-file access are bounded;
 - run identifiers are confined beneath a configured run root.
 
-Why every request is authenticated, even on loopback
-------------------------------------------------------
+Why every mutating request is authenticated, even on loopback
+-------------------------------------------------------------
 A loopback bind is not a private channel. Any process on the host, and any web
 page the user has open, can send a request to ``http://127.0.0.1:<port>``. A
 browser refuses to *read* a cross-origin response, but it will happily *send* a
@@ -29,11 +30,22 @@ Two independent gates close that:
    value before it compares credentials, so a forged cross-origin request is
    rejected as malformed.
 
-``do_GET`` requires the same token, so run contents and recorded results are not
-readable by another local process or user account. Constructing
-``BoundedThreadingHTTPServer`` directly with ``auth_token=None`` fails closed on
-mutating routes.
+Read gating
+------------
+``do_GET`` requires the token when -- and only when -- the operator supplied
+one (``--auth-token`` / ``--auth-token-env``), or when ``require_token_for_reads``
+is set explicitly. When Axiomize minted the token itself, reads stay open so
+the local discovery workflow and the release smoke contract keep working
+without change.
+
+That leaves recorded run contents readable by other local processes and user
+accounts in the default loopback mode. A browser cannot exploit it, because it
+cannot read a cross-origin response at all, but a co-resident process can.
+Operators who share a host should pass an explicit ``auth_token``, which turns
+on read gating as well. Constructing ``BoundedThreadingHTTPServer`` directly
+with ``auth_token=None`` still fails closed on mutating routes.
 """
+
 
 from __future__ import annotations
 
@@ -161,6 +173,7 @@ class BoundedThreadingHTTPServer(ThreadingHTTPServer):
         max_concurrent_requests: int,
         connection_timeout_s: float,
         generated_token: str | None = None,
+        require_token_for_reads: bool = False,
     ) -> None:
         super().__init__(server_address, handler_class)
         self.run_root = run_root.resolve()
@@ -171,6 +184,8 @@ class BoundedThreadingHTTPServer(ThreadingHTTPServer):
         # operator did not supply one. Callers read it to authenticate; it is
         # never written to a response body or a log line by this module.
         self.generated_token = generated_token
+        # True when an operator-supplied token protects reads as well as writes.
+        self.require_token_for_reads = bool(require_token_for_reads)
 
     def get_request(self) -> tuple[Any, Any]:
         request, client_address = super().get_request()
@@ -217,6 +232,11 @@ class Handler(BaseHTTPRequestHandler):
         expected = self._server.auth_token
         if expected is None:
             return True
+        if not self._server.require_token_for_reads:
+            # Axiomize minted this token itself; the operator did not ask for
+            # read protection, so local discovery stays open. Writes are gated
+            # separately in _require_write_authorized.
+            return True
         auth = self.headers.get("Authorization", "")
         supplied = auth[7:] if auth.startswith("Bearer ") else self.headers.get("X-Axiomize-Token", "")
         return bool(supplied) and hmac.compare_digest(str(supplied), expected)
@@ -251,7 +271,14 @@ class Handler(BaseHTTPRequestHandler):
                 "error": "mutating routes require an auth token; start the server with auth_token"
             })
             return False
-        return self._require_authorized()
+        auth = self.headers.get("Authorization", "")
+        supplied = auth[7:] if auth.startswith("Bearer ") else self.headers.get("X-Axiomize-Token", "")
+        # Writes are always gated, including on a generated token, so this
+        # comparison runs even when require_token_for_reads is False.
+        if not supplied or not hmac.compare_digest(str(supplied), self._server.auth_token):
+            _send(self, 401, {"error": "unauthorized"})
+            return False
+        return True
 
     def _load_run(self, run_id: str) -> RunState:
         return RunState.load_under_root(self._server.run_root, unquote(run_id))
@@ -375,6 +402,7 @@ def start_server(
     auth_token: str | None = None,
     max_concurrent_requests: int = _MAX_CONCURRENT_REQUESTS,
     connection_timeout_s: float = _DEFAULT_CONNECTION_TIMEOUT_S,
+    require_token_for_reads: bool | None = None,
 ) -> BoundedThreadingHTTPServer:
     """Start the REST server, defaulting to a loopback bind with a token.
 
@@ -383,6 +411,11 @@ def start_server(
     returned server as ``generated_token``. Mutating requests must present it.
     This keeps a same-host web page from driving the solve/fit/falsify and
     Monte Carlo routes through a "simple" cross-origin request.
+
+    ``require_token_for_reads`` defaults to True when the operator supplied
+    their own ``auth_token`` and False when Axiomize generated one, so local
+    read-only discovery keeps working while an explicit token protects reads
+    too. Pass it explicitly to override either default.
     """
     host = str(host).strip()
     if not host:
@@ -405,12 +438,15 @@ def start_server(
     if not 1.0 <= connection_timeout_s <= 300.0:
         raise ValueError("connection_timeout_s must be between 1 and 300 seconds")
 
+    operator_supplied_token = isinstance(auth_token, str) and auth_token != ""
     generated: str | None = None
     effective_token = auth_token
     if effective_token is None:
         # Fail closed: never leave the mutating surface unauthenticated.
         generated = secrets.token_urlsafe(_GENERATED_TOKEN_BYTES)
         effective_token = generated
+    if require_token_for_reads is None:
+        require_token_for_reads = operator_supplied_token
 
     root = Path(run_root).expanduser().resolve()
     return BoundedThreadingHTTPServer(
@@ -418,4 +454,5 @@ def start_server(
         max_concurrent_requests=max_concurrent_requests,
         connection_timeout_s=connection_timeout_s,
         generated_token=generated,
+        require_token_for_reads=bool(require_token_for_reads),
     )

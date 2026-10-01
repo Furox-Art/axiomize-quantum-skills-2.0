@@ -46,18 +46,32 @@ Two independent gates close that:
    `text/html` is refused with `415`. This API only speaks JSON, so a forged
    cross-origin request is rejected as malformed before any credential
    comparison happens.
-2. **Every route requires a token.** When the operator supplies no token,
-   `start_server` mints a 256-bit one (`secrets.token_urlsafe(32)`) and exposes
-   it as `server.generated_token`. Requests must present it as
+2. **Every mutating request requires a token.** When the operator supplies no
+   token, `start_server` mints a 256-bit one (`secrets.token_urlsafe(32)`) and
+   exposes it as `server.generated_token`. Requests must present it as
    `Authorization: Bearer <token>` or `X-Axiomize-Token: <token>`.
+
+### Read gating
+
+`GET` routes require the token when — and only when — the operator supplied
+their own `auth_token`, or when `require_token_for_reads=True` is passed
+explicitly. When Axiomize generated the token itself, read-only discovery stays
+open so the local workflow and the release smoke contract work unchanged.
+
+**Known residual risk.** In that default loopback mode, recorded run contents
+and results under `--run-root` are readable by other local processes and user
+accounts. A browser cannot exploit this, because it cannot read a cross-origin
+response at all, but a co-resident process can. Operators who share a host
+should supply an explicit `auth_token`, which turns on read gating too.
 
 ### Overriding the default
 
 | Goal | Flag | Notes |
 | --- | --- | --- |
-| Authenticate with a chosen secret | `--auth-token <value>` | Preferred for scripts; `server.generated_token` is then `None` |
+| Authenticate with a chosen secret | `--auth-token <value>` | Also turns on read gating; `server.generated_token` is then `None` |
 | Authenticate from the environment | `--auth-token-env <NAME>` | Default name `AXIOMIZE_REST_TOKEN`; keeps the secret out of argv and shell history |
 | Accept a generated token | *(nothing)* | `axiomize serve` prints the generated token to **stderr**, once |
+| Protect reads with a generated token | `require_token_for_reads=True` | Library callers only; implies an operator token when passed as a flag |
 | Bind a non-loopback address | `--host <addr> --allow-remote` | Also requires a token of at least 16 characters |
 
 `axiomize serve` prints the generated token on stderr so the local workflow

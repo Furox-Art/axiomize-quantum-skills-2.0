@@ -119,17 +119,13 @@ class TestREST:
     @staticmethod
     def _auth(server):
         # start_server always installs a token (generating one when the caller
-        # supplies none), so every request must present it.
+        # supplies none), so every mutating request must present it.
         return {"Authorization": f"Bearer {server.auth_token}"}
 
     def test_get_tools(self):
         server = self._server()
         try:
-            request = urllib.request.Request(
-                f"http://127.0.0.1:{server.server_address[1]}/v1/tools",
-                headers=self._auth(server),
-            )
-            with urllib.request.urlopen(request) as response:
+            with urllib.request.urlopen(f"http://127.0.0.1:{server.server_address[1]}/v1/tools") as response:
                 assert response.status == 200
         finally:
             server.shutdown()
@@ -152,12 +148,8 @@ class TestREST:
     def test_unknown_route_is_404(self):
         server = self._server()
         try:
-            request = urllib.request.Request(
-                f"http://127.0.0.1:{server.server_address[1]}/nope",
-                headers=self._auth(server),
-            )
             with pytest.raises(urllib.error.HTTPError) as exc:
-                urllib.request.urlopen(request)
+                urllib.request.urlopen(f"http://127.0.0.1:{server.server_address[1]}/nope")
             assert exc.value.code == 404
         finally:
             server.shutdown()
