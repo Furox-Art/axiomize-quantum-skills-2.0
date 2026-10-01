@@ -130,7 +130,12 @@ jobs:
           python .github/scripts/package_contents_smoke.py --dist-dir dist
 
   validate:
-    name: validate (${{ matrix.python-version }})
+    # The OS is part of the job name on purpose. GitHub keys required status
+    # checks by the displayed name, so a name of `validate (3.12)` would be
+    # reported identically by the Linux and Windows rows, leaving the ruleset
+    # unable to require them separately -- and a required check that is never
+    # reported blocks the pull request forever.
+    name: validate (${{ matrix.os }}, ${{ matrix.python-version }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
     strategy:
