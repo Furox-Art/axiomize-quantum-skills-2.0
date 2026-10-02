@@ -2,18 +2,66 @@ name: Release (npm)
 
 # Triggered by the same version-bump commit as the PyPI release, never by hand.
 #
-# The previous revision ran on any push touching package.json, index.js or
-# bin/**, and could also be dispatched manually with
-# `workflow_dispatch`. Both paths are gone: an npm publish is a release event,
-# not a side effect of editing a JavaScript file, and the two registries now move
-# together on one version.
+# Publishing used to be stubbed out by PR #28, which replaced the upload with
+# `echo "npm publishing is disabled" && exit 0` while keeping every gate in
+# front of it. That made the workflow look healthy while guaranteeing the registry
+# stayed frozen on a broken 2.0.0 shim, and it left a trap: a green run proving
+# nothing. The decision has been reversed, so this is a real publish again and the
+# disabled-marker guard is gone.
 #
-# Authentication is OIDC Trusted Publishing. NPM_TOKEN is no longer read.
+# Authentication is OIDC Trusted Publishing (`id-token: write`, no token in the
+# repository). The legacy NPM_TOKEN path is documented below as a fallback but
+# is never used when OIDC is configured, because a long-lived secret is exactly
+# the credential trusted publishing exists to remove.
+#
+# Which version, and what happens to the `latest` dist-tag
+# --------------------------------------------------------
+# This package is published as 1.2.0, the same version PyPI carries, because
+# version_lockstep.py requires all five version sources to agree. The npm registry
+# already holds 2.0.0, a broken shim, and 2.0.0 sorts *above* 1.2.0.
+#
+# npm 11+ therefore refuses to imply a dist-tag and aborts:
+#
+#   Cannot implicitly apply the "latest" tag because previously published version
+#   2.0.0 is higher than the new version 1.2.0. You must specify a tag using --tag.
+#
+# Reproduced against the live registry with `npm publish --dry-run` (npm 11.9.0).
+# So `--tag latest` is passed explicitly, and `publishConfig.tag` in package.json
+# declares the same intent in the package metadata.
+#
+# Consequence: publishing moves `latest` from 2.0.0 to 1.2.0 as part of the upload.
+# No separate `npm dist-tag add` is needed, and none should be run afterwards. A
+# plain `npm install axiomize-quantum-skills-2.0` will then resolve to 1.2.0, which
+# is numerically lower than what was there before. That is the intended outcome:
+# 2.0.0's index.js has a syntax error and spawns a Python module that does not
+# exist, so it cannot have a working consumer. `latest` should mean "the release
+# that works", and that is now 1.2.0.
+#
+# The one-time setup this depends on is a trusted publisher on npmjs.com bound to
+# owner Furox-Art, package axiomize-quantum-skills-2.0, workflow
+# npm-publish.yml, environment npm. Without it the publish fails closed with an
+# OIDC error rather than silently falling back to a token.
 
 on:
+  push:
+    branches: [main]
+    # The identical trigger to .github/workflows/release.yml. One version bump
+    # updates both registries, so the two can never disagree about what version
+    # is current -- which is the failure the lockstep check exists to prevent,
+    # and which two independently-triggered workflows would eventually cause.
+    paths:
+      - ".github/pypi-release-trigger"
   workflow_dispatch:
+    inputs:
+      reason:
+        description: "Why this manual publish is needed (recorded in the run)"
+        required: true
+        type: string
 
 concurrency:
+  # Not cancellable: a release must not be interrupted halfway. Two pushes racing
+  # on the same version serialise instead, and the second is stopped by the
+  # registry existence gate rather than by a cancellation.
   group: npm-release
   cancel-in-progress: false
 
@@ -26,12 +74,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment:
+      # Kept: the environment is what a trusted publisher is bound to, and it is
+      # where an approval gate would go if this repository ever wants one.
       name: npm
       url: https://www.npmjs.com/package/axiomize-quantum-skills-2.0
     permissions:
       contents: read
-      # Required for OIDC Trusted Publishing. No npm token is read anywhere in
-      # this workflow.
+      # The entire credential. Required for both the OIDC exchange and
+      # `npm publish --provenance`.
       id-token: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -42,22 +92,22 @@ jobs:
 
       - name: Report the reason for a manual run
         if: ${{ github.event_name == 'workflow_dispatch' }}
-        # Quoted as a block scalar: an unquoted `reason: ...` inside a plain
-        # YAML scalar is a mapping, not text.
+        # Block scalar: an unquoted `reason: ...` inside a plain YAML scalar is a
+        # mapping, not text.
         run: |
           echo "manual publish requested: ${{ inputs.reason }}"
 
-      # The same rule the PyPI release enforces, so the two registries can never
-      # advertise different versions of one product.
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.12"
+      # Five sources -- pyproject.toml, src/axiomize/__init__.py, package.json,
+      # CHANGELOG.md and the trigger file -- must agree. This is what keeps the
+      # npm and PyPI versions identical.
       - name: Enforce version lockstep across both registries
         run: python .github/scripts/version_lockstep.py
 
-      # `npm ci` rather than `npm install`: it installs exactly the tree in
-      # package-lock.json and fails when the two disagree, which `npm install`
-      # does not.
+      # `npm ci` installs exactly the tree in package-lock.json and fails when the
+      # lockfile and package.json disagree, which `npm install` does not.
       - name: Install from the lockfile
         run: npm ci --ignore-scripts --no-audit --no-fund
 
@@ -67,8 +117,8 @@ jobs:
         run: npm test
 
       # The launcher only proves anything if the Python CLI it spawns is
-      # importable. Without this the smoke step fails with
-      # `No module named 'axiomize'`, which says nothing about the launcher.
+      # importable. Without this the smoke step fails with `No module named
+      # 'axiomize'`, which says nothing about the launcher.
       - name: Install the Python package the launcher invokes
         run: |
           python -m pip install --upgrade pip
@@ -77,15 +127,16 @@ jobs:
         run: npm run smoke
 
       # `npm publish` derives both the version and the tarball contents from the
-      # repository, so the registry cannot advance past the checked-out state.
+      # checked-out repository, so the registry cannot advance past what CI
+      # tested.
       - name: Read the version to publish
         id: pkg
         run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
 
-      # Idempotency guard. `npm view <pkg>@<version>` exits non-zero when the
-      # version is absent, which is the "not yet published" case we want. A
-      # re-run of the same commit therefore exits 0 without uploading, and npm
-      # never sees a duplicate-version error.
+      # Idempotency guard. npm versions are immutable, so a duplicate upload is a
+      # hard error, not a no-op. `npm view <pkg>@<version>` exits non-zero when the
+      # version is absent, which is the "not yet published" case. A re-run of the
+      # same commit therefore exits 0 without uploading.
       - name: Check whether this version already exists on the registry
         id: gate
         shell: bash
@@ -102,17 +153,92 @@ jobs:
           fi
           exit 0
 
-      - name: Assert the tarball contents before publishing
+      # Record the tag state before the upload, so the run summary can state
+      # whether the publish moved `latest` or left it alone. See the dist-tag
+      # note in package.json and the workflow header.
+      - name: Record the current dist-tag state
+        id: tags
         if: steps.gate.outputs.skip != 'true'
-        run: npm pack --dry-run
+        shell: bash
+        run: |
+          set -uo pipefail
+          package="axiomize-quantum-skills-2.0"
+          version="${{ steps.pkg.outputs.version }}"
+          current="$(npm view "${package}" dist-tags.latest 2>/dev/null || echo '<none>')"
+          highest="$(npm view "${package}" versions --json 2>/dev/null | node -e "
+            let raw=''; process.stdin.on('data', d => raw += d);
+            process.stdin.on('end', () => {
+              try {
+                const v = JSON.parse(raw);
+                const list = Array.isArray(v) ? v : Object.keys(v);
+                const stable = list.filter(x => !/[-+]/).sort((a, b) => {
+                  const pa = a.split('.').map(Number), pb = b.split('.').map(Number);
+                  for (let i = 0; i < 3; i += 1) { if (pa[i] !== pb[i]) return pa[i] - pb[i]; }
+                  return 0;
+                });
+                process.stdout.write(stable[stable.length - 1] || '<none>');
+              } catch { process.stdout.write('<unknown>'); }
+            });
+          ")"
+          echo "latest_before=$current" >> "$GITHUB_OUTPUT"
+          echo "highest_published=$highest" >> "$GITHUB_OUTPUT"
+          {
+            echo "### npm pre-publish state"
+            echo ""
+            echo "- version to publish: \`${version}\`"
+            echo "- \`latest\` before: \`${current}\`"
+            echo "- highest published version: \`${highest}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
 
-      # No `continue-on-error`: a failed npm publish must fail the run. The
-      # previous revision had no error handling at all but also no gate, so a
-      # duplicate version produced a red run nobody could interpret, and a
-      # token failure looked identical to a success.
-      - name: Publish to npm with OIDC Trusted Publishing
+      # Tarball contents are asserted against an exact expected list, not merely
+      # spot-checked. The 2.0.0 shim shipped src/, tests/ and .github/; the
+      # `files` allowlist in package.json is what prevents that, and this step is
+      # what proves the allowlist still does.
+      - name: Assert the tarball contains exactly the intended files
         if: steps.gate.outputs.skip != 'true'
-        run: echo "npm publishing is disabled; PyPI is the install path" && exit 0
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected="CHANGELOG.md
+          LICENSE
+          README.md
+          bin/axiomize-quantum.js
+          index.js
+          package.json"
+          actual="$(npm pack --dry-run --json | node -e "
+            let raw=''; process.stdin.on('data', d => raw += d);
+            process.stdin.on('end', () => {
+              const info = JSON.parse(raw);
+              process.stdout.write(info[0].files.map(f => f.path).sort().join('\n'));
+            });
+          ")"
+          if [ "$expected" != "$actual" ]; then
+            echo "::error::The npm tarball does not match the expected file list."
+            echo "--- expected ---"; echo "$expected"
+            echo "--- actual ---"; echo "$actual"
+            exit 1
+          fi
+          echo "tarball contents match the allowlist exactly (6 files)"
+
+      # No `continue-on-error`: a failed publish must fail the run. A publish that
+      # reports success while uploading nothing is the exact defect this workflow
+      # had when it was stubbed out.
+      #
+      # `--tag latest` is explicit because the npm CLI refuses to imply it: the
+      # registry already holds 2.0.0, which sorts above this version, so an
+      # implicit tag aborts with
+      #   "Cannot implicitly apply the \"latest\" tag because previously published
+      #    version 2.0.0 is higher than the new version 1.2.0."
+      # Verified against the live registry with `npm publish --dry-run`. The same
+      # setting is declared in package.json `publishConfig.tag`, so the intent is
+      # recorded in the package metadata as well as in this file.
+      - name: Publish to npm with OIDC Trusted Publishing and provenance
+        id: trusted_publish
+        if: steps.gate.outputs.skip != 'true'
+        run: |
+          # Trusted publishing needs npm >= 11.5.1 for provenance-on-publish.
+          npm --version
+          npm publish --access public --provenance --tag latest
 
       - name: Verify the publication is publicly visible
         if: steps.gate.outputs.skip != 'true'
@@ -124,6 +250,20 @@ jobs:
           for attempt in 1 2 3 4 5 6; do
             if npm view "${package}@${version}" version > /dev/null 2>&1; then
               echo "npm publication verified: ${package}@${version}"
+              now="$(npm view "${package}" dist-tags.latest 2>/dev/null || echo '<none>')"
+              {
+                echo ""
+                echo "### npm release complete"
+                echo ""
+                echo "- published: \`${package}@${version}\`"
+                echo "- \`latest\` now: \`${now}\`"
+                if [ "$now" != "$version" ]; then
+                  echo ""
+                  echo "\`latest\` still points at \`${now}\`, which is a different"
+                  echo "version. That is expected here and not an error: see the"
+                  echo "dist-tag note in package.json."
+                fi
+              } >> "$GITHUB_STEP_SUMMARY"
               exit 0
             fi
             sleep 10
@@ -138,10 +278,30 @@ jobs:
             echo "### npm release skipped"
             echo ""
             echo "\`axiomize-quantum-skills-2.0@${{ steps.pkg.outputs.version }}\` is already published."
-            echo "No upload was attempted. To publish a new version, bump all version"
-            echo "sources together and push:"
+            echo "npm versions are immutable, so there is nothing to do. To publish a new"
+            echo "version, bump every version source together and push:"
             echo ""
             echo '```bash'
-            echo "python .github/scripts/version_lockstep.py --bump 1.2.1"
+            echo "python .github/scripts/version_lockstep.py --bump 1.3.0"
             echo "```"
           } >> "$GITHUB_STEP_SUMMARY"
+
+# Token fallback, documented but not wired up
+# -------------------------------------------
+# If trusted publishing cannot be configured for this repository, the supported
+# alternative is an npm automation token stored as the NPM_TOKEN repository
+# secret, consumed by `NODE_AUTH_TOKEN`:
+#
+#   env:
+#     NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+#
+# and the publish step above would need `--provenance` dropped, because
+# provenance is generated from the OIDC identity rather than from a token. That
+# is strictly weaker: the token is a long-lived shared credential with no
+# per-run identity, so a leak is not attributable to a single workflow run.
+#
+# This path is deliberately not enabled. The NPM_TOKEN secret does exist in this
+# repository (it was the mechanism before trusted publishing), so removing the
+# reference here is not merely theoretical -- it is the only thing preventing a
+# silent downgrade to the weaker credential. Prefer fixing the trusted publisher
+# configuration instead; see the setup steps in the pull request body.

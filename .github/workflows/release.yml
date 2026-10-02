@@ -16,6 +16,16 @@ name: Release (PyPI)
 # Authentication is OIDC Trusted Publishing only. There is no static token path
 # and no `continue-on-error` on the publish step, so an unconfigured publisher
 # fails the run instead of being reported as a success.
+#
+# The npm registry is published by .github/workflows/npm-publish.yml from the
+# same trigger file. Both workflows read `.github/pypi-release-trigger`, so a
+# single version bump updates both registries: one commit, one version, and
+# version_lockstep.py asserts all five version sources agree before either upload
+# starts. Splitting the trigger across two files would allow a bump that reached
+# only one registry, which is the exact drift the lockstep check is there to
+# prevent. The two are separate workflows rather than one combined job so a
+# registry outage fails only its own leg, and each has its own idempotency gate
+# because npm and PyPI have independent immutability rules.
 
 on:
   push:
