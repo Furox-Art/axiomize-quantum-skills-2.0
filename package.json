@@ -21,6 +21,11 @@
   "engines": {
     "node": ">=18.0.0"
   },
+  "publishConfig": {
+    "tag": "latest",
+    "access": "public",
+    "provenance": true
+  },
   "keywords": [
     "modeling",
     "simulation",
