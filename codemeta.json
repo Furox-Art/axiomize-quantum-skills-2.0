@@ -1,0 +1,26 @@
+{
+  "@context": "https://doi.org/10.5063/schema/codemeta-2.0",
+  "@type": "SoftwareSourceCode",
+  "name": "axiomize-quantum-skills-2.0",
+  "version": "1.2.0",
+  "description": "Combined distribution of axiomize and the quantum-reasoning skill. Not a separate product.",
+  "license": "https://spdx.org/licenses/MIT",
+  "codeRepository": "https://github.com/Furox-Art/axiomize-quantum-skills-2.0",
+  "url": "https://furox-art.github.io/axiomize-quantum-skills-2.0/",
+  "programmingLanguage": {
+    "@type": "ComputerLanguage",
+    "name": "Python"
+  },
+  "author": [
+    {
+      "@type": "Person",
+      "name": "Furox-Art"
+    }
+  ],
+  "datePublished": "2026-09-30",
+  "keywords": [
+    "scientific modeling",
+    "agent skills"
+  ],
+  "applicationCategory": "scientific computing"
+}
