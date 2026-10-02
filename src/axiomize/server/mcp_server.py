@@ -13,7 +13,7 @@ from typing import Any
 
 from axiomize.json_safety import json_safe
 from axiomize.limits import MAX_MCP_MESSAGE_BYTES
-from axiomize.runs.state import RunState, resolve_run_directory
+from axiomize.runs.state import RunState
 
 SERVER_NAME = "axiomize"
 API_VERSION = "v1"
@@ -163,10 +163,9 @@ def _call_tool(name: str, arguments: dict[str, Any], *, run_root: str | Path = "
     if name == "axiomize.workflow_policy": return services.workflow_policy_service(arguments)
     if name == "axiomize.clean_data": return services.clean_data_service(arguments)
     if name == "axiomize.compare_runs":
-        confined = dict(arguments)
-        confined["before_dir"] = str(resolve_run_directory(run_root, str(arguments["before_dir"])))
-        confined["after_dir"] = str(resolve_run_directory(run_root, str(arguments["after_dir"])))
-        return services.compare_runs_service(confined)
+        # Confinement is applied by the service, not here, so the guard cannot
+        # be skipped by a future caller of compare_runs_service.
+        return services.compare_runs_service(arguments, run_root=run_root)
     if name in ("axiomize.solve", "axiomize.simulate"): return services.solve_sir_service(arguments)
     if name == "axiomize.validate": return services.validate_sir_service(arguments)
     if name == "axiomize.fit_model":

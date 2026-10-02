@@ -116,6 +116,12 @@ class TestREST:
         thread.start()
         return server
 
+    @staticmethod
+    def _auth(server):
+        # start_server always installs a token (generating one when the caller
+        # supplies none), so every mutating request must present it.
+        return {"Authorization": f"Bearer {server.auth_token}"}
+
     def test_get_tools(self):
         server = self._server()
         try:
@@ -130,7 +136,7 @@ class TestREST:
             request = urllib.request.Request(
                 f"http://127.0.0.1:{server.server_address[1]}/v1/solve",
                 data=json.dumps({"N": 100000}).encode(),
-                headers={"Content-Type": "application/json"},
+                headers={"Content-Type": "application/json", **self._auth(server)},
                 method="POST",
             )
             with urllib.request.urlopen(request) as response:

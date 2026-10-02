@@ -209,6 +209,15 @@ def cmd_serve(args: argparse.Namespace) -> int:
         max_concurrent_requests=args.max_concurrent_requests,
     )
     print(f"axiomize REST v1 on http://{args.host}:{server.server_address[1]}")
+    if server.generated_token:
+        # Loopback with no operator token still authenticates every mutating
+        # route, so the generated token has to reach the operator somehow.
+        # Printed once, to this terminal only.
+        print(
+            "no --auth-token was supplied; mutating routes require this generated token:",
+            file=sys.stderr,
+        )
+        print(f"  Authorization: Bearer {server.generated_token}", file=sys.stderr)
     try:
         server.serve_forever()
     except KeyboardInterrupt:

@@ -54,7 +54,10 @@ def test_surrogate_rest_surface() -> None:
         request = urllib.request.Request(
             f"http://127.0.0.1:{server.server_address[1]}/v1/model/surrogate",
             data=json.dumps(_payload()).encode("utf-8"),
-            headers={"Content-Type": "application/json"},
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {server.auth_token}",
+            },
             method="POST",
         )
         with urllib.request.urlopen(request, timeout=10) as response:

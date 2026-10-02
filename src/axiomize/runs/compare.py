@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from axiomize.runs.state import RunState
+from axiomize.runs.state import RunState, resolve_run_directory
 
 
 def _changed_mapping(a: dict[str, Any], b: dict[str, Any]) -> dict[str, Any]:
@@ -107,7 +107,24 @@ def compare_run_states(before: RunState, after: RunState,
     }
 
 
-def compare_run_directories(before_dir: str | Path, after_dir: str | Path) -> dict[str, Any]:
+def compare_run_directories(
+    before_dir: str | Path,
+    after_dir: str | Path,
+    *,
+    run_root: str | Path | None = None,
+) -> dict[str, Any]:
+    """Compare two run directories, optionally confined beneath ``run_root``.
+
+    When ``run_root`` is given, both directory arguments are treated as
+    untrusted run identifiers and resolved with :func:`resolve_run_directory`,
+    which rejects absolute paths, NUL bytes and any component that escapes the
+    root. Network-facing callers must pass ``run_root``; the local
+    ``axiomize compare-runs`` CLI command operates on paths the operator chose
+    directly and passes ``None``.
+    """
+    if run_root is not None:
+        before_dir = resolve_run_directory(run_root, str(before_dir))
+        after_dir = resolve_run_directory(run_root, str(after_dir))
     before = RunState.load(before_dir)
     after = RunState.load(after_dir)
     return compare_run_states(

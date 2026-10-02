@@ -7,6 +7,7 @@ behavior, every interface.
 from __future__ import annotations
 
 import math
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -301,10 +302,22 @@ def clean_data_service(payload: dict[str, Any]) -> dict[str, Any]:
     return result.to_dict()
 
 
-def compare_runs_service(payload: dict[str, Any]) -> dict[str, Any]:
+def compare_runs_service(payload: dict[str, Any], *, run_root: str | Path | None = None) -> dict[str, Any]:
+    """Compare two stored runs, optionally confining both to a run root.
+
+    ``run_root`` is the security boundary. When it is supplied, ``before_dir``
+    and ``after_dir`` are treated as untrusted run identifiers and confined
+    beneath that root with the same primitive the run-inspection routes use, so
+    traversal, absolute paths and NUL bytes are rejected here rather than
+    depending on every transport remembering to do it.
+
+    Passing ``run_root=None`` is an explicit trust decision reserved for local
+    operator use (``axiomize compare-runs`` on a developer's own machine). Any
+    network-facing transport must pass a run root.
+    """
     from axiomize.runs.compare import compare_run_directories
 
     before_dir = str(payload.get("before_dir", "")).strip(); after_dir = str(payload.get("after_dir", "")).strip()
     if not before_dir or not after_dir:
         raise ValueError("compare_runs requires before_dir and after_dir")
-    return compare_run_directories(before_dir, after_dir)
+    return compare_run_directories(before_dir, after_dir, run_root=run_root)
