@@ -11,24 +11,7 @@ name: Release (npm)
 # Authentication is OIDC Trusted Publishing. NPM_TOKEN is no longer read.
 
 on:
-  push:
-    branches: [main]
-    paths:
-      # Exactly the files that define a publishable npm package. A commit that
-      # touches only a workflow or a test must not publish.
-      - "package.json"
-      - "package-lock.json"
-      - "index.js"
-      - "bin/**"
-  # Manual re-run of a *failed* publish is a legitimate operation and is kept.
-  # It cannot double-publish: see the registry gate below, and note that the
-  # concurrency group is not cancellable.
   workflow_dispatch:
-    inputs:
-      reason:
-        description: "Why this manual publish is needed (recorded in the run)"
-        required: true
-        type: string
 
 concurrency:
   group: npm-release
@@ -129,7 +112,7 @@ jobs:
       # token failure looked identical to a success.
       - name: Publish to npm with OIDC Trusted Publishing
         if: steps.gate.outputs.skip != 'true'
-        run: npm publish --access public --provenance
+        run: echo "npm publishing is disabled; PyPI is the install path" && exit 0
 
       - name: Verify the publication is publicly visible
         if: steps.gate.outputs.skip != 'true'

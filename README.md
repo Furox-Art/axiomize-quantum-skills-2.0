@@ -1,5 +1,7 @@
 # Axiomize Quantum Skills - 2.0
 
+This is not a separate product. It ships [axiomize](https://github.com/Furox-Art/axiomize) and [quantum-reasoning-skill](https://github.com/Furox-Art/quantum-reasoning-skill) together. Install those repositories when you need only one of them. This repository is not a second MCP registration.
+
 Current package line: **1.2.0**
 
 ![License](https://img.shields.io/badge/license-MIT-blue)
