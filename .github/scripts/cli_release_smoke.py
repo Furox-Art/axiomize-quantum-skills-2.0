@@ -11,16 +11,19 @@ from __future__ import annotations
 import json
 import math
 import shutil
-import socket
 import subprocess
 import sys
 import tempfile
-import time
-import urllib.error
-import urllib.request
 from importlib import metadata
 from pathlib import Path
 from typing import Any
+
+from rest_auth import (
+    RestAuthFailure,
+    RestServer,
+    assert_rejects_unauthenticated,
+    make_token,
+)
 
 
 CORE_COMMANDS = {
@@ -285,70 +288,32 @@ def _test_secondary_entrypoints(work: Path) -> None:
     _assert((reports_dir / "INDEX.md").is_file(), "axiomize-index-reports did not create INDEX.md")
 
 
-def _free_port() -> int:
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-        sock.bind(("127.0.0.1", 0))
-        return int(sock.getsockname()[1])
-
-
-def _request_json(
-    url: str,
-    *,
-    payload: dict[str, Any] | None = None,
-    timeout: float = 2.0,
-) -> dict[str, Any]:
-    data = None
-    headers: dict[str, str] = {}
-    if payload is not None:
-        data = json.dumps(payload).encode("utf-8")
-        headers["Content-Type"] = "application/json"
-    req = urllib.request.Request(url, data=data, headers=headers)
-    with urllib.request.urlopen(req, timeout=timeout) as response:
-        body = json.loads(response.read().decode("utf-8"))
-    if not isinstance(body, dict):
-        raise SmokeFailure(f"REST endpoint returned non-object JSON: {body!r}")
-    return body
-
-
 def _test_rest_cli() -> None:
-    axiomize = _exe("axiomize")
-    port = _free_port()
-    proc = subprocess.Popen(
-        [axiomize, "serve", "--host", "127.0.0.1", "--port", str(port)],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.PIPE,
-        text=True,
-    )
-    try:
-        base = f"http://127.0.0.1:{port}/v1"
-        last_error: Exception | None = None
-        for _ in range(50):
-            if proc.poll() is not None:
-                stderr = proc.stderr.read() if proc.stderr else ""
-                raise SmokeFailure(f"REST server exited early ({proc.returncode}): {stderr}")
-            try:
-                caps = _request_json(f"{base}/capabilities")
-                _assert("interfaces" in caps, "REST /capabilities missing interfaces")
-                break
-            except (OSError, urllib.error.URLError, json.JSONDecodeError) as exc:
-                last_error = exc
-                time.sleep(0.1)
-        else:
-            raise SmokeFailure(f"REST server never became ready: {last_error!r}")
+    """Exercise the REST server the way a user now has to.
 
-        intake = _request_json(
-            f"{base}/intake",
+    Mutating routes require a bearer token even on loopback, so the server is
+    started with a token this script supplies through AXIOMIZE_REST_TOKEN and
+    every request presents it. Supplying our own token also gates the read
+    routes, which is why the readiness probe is authenticated too.
+    """
+    axiomize = _exe("axiomize")
+    token = make_token()
+    with RestServer(axiomize, token) as server:
+        caps = server.wait_until_ready("/capabilities", timeout=5.0)
+        _assert("interfaces" in caps, "REST /capabilities missing interfaces")
+
+        intake = server.request_json(
+            "/intake",
             payload={"idea": "Reduce traffic congestion"},
         )
-        _assert(intake.get("status") in {"NEEDS_INPUT", "READY"}, "REST /intake failed")
-    finally:
-        if proc.poll() is None:
-            proc.terminate()
-            try:
-                proc.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                proc.kill()
-                proc.wait(timeout=5)
+        _assert(intake.get("status") in {"NEEDS_INPUT", "READY"}, f"REST /intake failed: {intake}")
+
+        # The authenticated call above would also succeed if the route had no
+        # requirement at all. Assert the negative case so this smoke test cannot
+        # pass by accident if the token check is ever weakened.
+        assert_rejects_unauthenticated(
+            server, "/intake", {"idea": "Reduce traffic congestion"}
+        )
 
 
 def _test_mcp_cli() -> None:
@@ -410,6 +375,8 @@ def main() -> int:
 if __name__ == "__main__":
     try:
         raise SystemExit(main())
-    except SmokeFailure as exc:
+    # RestAuthFailure is the authenticated-REST failure mode; without this it
+    # would escape as a traceback instead of a RESULT line.
+    except (SmokeFailure, RestAuthFailure) as exc:
         print(f"RESULT: FAIL - {exc}", file=sys.stderr)
         raise SystemExit(1)
