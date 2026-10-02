@@ -2,10 +2,120 @@
 
 All notable changes to Axiomize are documented here. Axiomize follows semantic versioning; release claims are tied to exact-wheel CI/release evidence.
 
+## How to read this file
+
+This changelog covers **two version lineages** that share one history, which used to make
+the version numbers ambiguous. They are now separated:
+
+| Lineage | Range | Where it lives |
+|---|---|---|
+| **Current distribution** `axiomize-quantum-skills-2.0` | 1.0.0 (2026-09-19) → present | [Releases](#releases-axiomize-quantum-skills-20) below, up to and including the current version |
+| **Upstream lineage** of the `Furox-Art/axiomize` repository | 1.0.0 (2026-08-24) → 1.12.2 (2026-09-05), then 2.0.0 and 2.1.0 (2026-09-16) | [Upstream lineage](#upstream-lineage-furox-artaxiomize) further down, marked with an H1 |
+
+Two consequences worth stating plainly:
+
+- The engine code that became this package shipped first as `Furox-Art/axiomize` at version
+  1.12.2. Versions 1.13 through 2.1.0 therefore belong to that repository, **not** to a
+  release of the `axiomize-quantum-skills-2.0` distribution on PyPI.
+- The distribution name `axiomize-quantum-skills-2.0` restarted the numbering at 1.0.0 on
+  2026-09-19. So `1.0.0`, `1.1.0` and `1.2.0` each appear twice below. The earlier of each
+  pair is upstream history; the later one is a real release of this package, identifiable
+  by its date and by the tag on the GitHub Releases page for this repository.
+- The npm package `axiomize-quantum-skills-2.0` is published at `2.0.0`. That number is not
+  part of this lineage and does not correspond to any release here. (Superseded: #25 pinned
+  `package.json` to `1.2.0` and CI now enforces the lockstep, so the next npm release
+  carries the current version. The registry still serves `2.0.0` until that publish
+  happens.)
+
+`python .github/scripts/check_release_contract.py` enforces the version lockstep across
+`pyproject.toml`, `src/axiomize/__init__.py`, `.github/pypi-release-trigger`, `README.md` and
+the first `## [x.y.z]` heading in this file. That is why the first release heading must
+always be the current version.
+
 ## Unreleased
+
+### Changed
+
+- **npm status corrected after #25.** #25 fixed `index.js` and pinned `package.json` to
+  `1.2.0`, so the documentation no longer describes the npm CLI as broken in the source.
+  It does describe it accurately for users, because the fix is **not yet published**:
+  `registry.npmjs.org` still serves `2.0.0`, uploaded 2026-09-28, whose `index.js` is the
+  old `proc.on('close', (code) =; }` and whose tarball is 303 files / 2.1 MB. So
+  `npx axiomize-quantum` still fails while `node bin/axiomize-quantum.js` works from a
+  checkout. Verified on the merged tree: `node --check` exits 0 on both JavaScript files,
+  `node index.js --help` exits 0, a bad subcommand exits 2, `require('./index.js')`
+  resolves, and `npm pack --dry-run` produces 6 files / 41.2 kB. PyPI 1.2.0 is the
+  supported install.
+- README, `docs/index.md`, `docs/tutorial.md`, `docs/integrations.md` and
+  `docs/publishing-checklist.md` now say "npm is behind, PyPI is current" instead of either
+  "npm is broken" or "npm works". Benchmark and command provenance now cites the merge
+  commit rather than the pre-merge one, and the 25-case corpus was re-graded on the merged
+  tree: still 25/25 PASS at 10.0/10 with identical lens counts.
+- `SECURITY.md` records the exact API response behind its reporting guidance
+  (`{"enabled":false}`), names the advisories endpoint so a reader can see it does not work
+  yet, and states the single settings change that would fix it. The fallback instructions
+  are unchanged because the setting is genuinely still disabled.
+
+### Added
+
+- `CITATION.cff` so the package can be cited, and `CODE_OF_CONDUCT.md`.
+- Issue templates for bugs, feature requests and questions, plus `.github/ISSUE_TEMPLATE/config.yml`
+  routing security reports and documentation questions to the right pages. Bare issues are
+  now redirected to the templates.
+- `docs/quickstart-model-ir.json`: a complete, copy-pasteable Model IR request used by the
+  README and tutorial quickstarts.
+- A documentation section that shows the engine working: the previously unreferenced
+  `docs/sir-demo.gif`, `docs/sir-example.png` and `docs/report-sample.pdf` are now embedded
+  with captions describing what they show.
+- Repository metadata: topics covering the causal, dimensional, uncertainty and
+  reproducibility surfaces, and a description that states the released version instead of
+  claiming "Axiomize 2.0".
 
 ### Fixed
 
+- **Every cross-repository link now points at this repository.** `docs/tutorial.md` told
+  readers to `git clone https://github.com/Furox-Art/axiomize` — a different repository with
+  a different release line — and to copy a skill path from it. It now clones this
+  repository. `docs/example-gallery.md` linked all 13 of its example links plus its
+  "full texts live in" link to the sibling repository, and `docs/benchmark-results.md`
+  linked 11 of its report links there; both now resolve to files in this repository. The
+  gallery's `#the-fifteen-lenses` anchor pointed at a heading that does not exist in the
+  target README; the lens list is now stated locally.
+- `docs/example-gallery.md` covered 11 of the 18 examples in `examples/`. All 18 are now
+  listed, each verified to exist, each linked exactly once.
+- **The tutorial's commands work against the current API.** `docs/tutorial.md` now records
+  `intake`, `policy` and `model` (which did not exist when it was written), and each command
+  in it was executed against 1.2.0 at commit `eb70a47` on CPython 3.12.10 before being
+  documented. It gains a troubleshooting table covering the errors a new user actually hits,
+  including the Model IR wrapper requirement, unknown units, and UTF-8 BOM input.
+- `docs/integrations.md` listed 14 MCP tools; the server exposes 34. It listed 6 REST
+  routes; 27 exist. Both are now accurate, with the route table verified against a live
+  `axiomize serve`. The `{"command":"axiomize","args":["mcp"]}` config is verified by a real
+  `initialize` + `tools/list` handshake.
+- `docs/integrations.md` implied `axiomize solve --json` produces a run id you can pass to
+  `axiomize reproduce`. It does not — the payload has no `run_id`. That is now stated.
+- `docs/integrations.md` listed "Hermes Agent — SUPPORTED (built and tested here)" and
+  checked boxes for Claude Code, Cursor, OpenCode and OpenCode. No field test against any of
+  these is recorded in this repository, so the table now states what was actually exercised:
+  MCP protocol conformance and live REST responses. The unverifiable row and the checkmarks
+  are gone.
+- `docs/integrations.md` and `SECURITY.md` now name the correct token environment variable
+  (`AXIOMIZE_REST_TOKEN`, minimum 16 characters) and recommend the environment over
+  `--auth-token`.
+- `SECURITY.md` referred to GitHub private vulnerability reporting "when available". It is
+  **not** enabled on this repository, so the policy now says so and gives the routes that do
+  work, plus what a maintainer can do to close the gap.
+- `mkdocs.yml` had no `site_url`, so the published `sitemap.xml` was an empty `<urlset/>` —
+  zero URLs, silently. It now emits 20. Added the `search` plugin, so `/search/` resolves
+  instead of 404ing.
+- `mkdocs.yml` listed 6 pages in nav while 14 more were built but unreachable. All are now in
+  the nav, grouped. `mkdocs build --strict` is clean with zero warnings.
+- The documentation site homepage linked only the example gallery and PyPI. It now links
+  the tutorial, integrations, benchmark results, security, contributing, code of conduct,
+  changelog, citation and license.
+- `docs/publishing-checklist.md` was a submission checklist for the sibling repository,
+  including a "README GIF renders" item that could not pass here. It is rewritten for this
+  package, with an explicit "do not claim" table.
 - README no longer shows a PyPI downloads badge. `img.shields.io/pypi/dm/axiomize-quantum-skills-2.0`
   answers HTTP 200 while rendering `downloads: rate limited by upstream service` (or
   `downloads: inaccessible`), because shields.io scrapes a third-party download API.
@@ -13,6 +123,38 @@ All notable changes to Axiomize are documented here. Axiomize follows semantic v
   always carry the real numbers. No count is hardcoded. New
   `tests/test_readme_badges.py` fails if a dynamic download badge or a hand-copied
   download count reappears.
+- README badge markup: `img.shields.io/badge/python-3.10%2B-informational` rendered the
+  literal text `3.10%2B` instead of `3.10+`. Replaced with `img.shields.io/python-3.10+-blue`.
+- The README described the package as "Axiomize 2.0" and documented `npx axiomize-quantum`
+  as a working quickstart. It is neither: the released line is 1.2.0, and the published npm
+  `index.js` fails `node --check` with a syntax error, so that command cannot run. The
+  README now states the released version and lists the npm breakage under honest limits
+  rather than advertising it as a way in.
+
+### Changed
+
+- README rewritten to document the surface that actually ships: 9 CLI entry points, 14
+  `axiomize` subcommands, 34 MCP tools, the REST routes, and the two installable agent
+  skills. It previously documented none of them.
+- `docs/benchmark-results.md` no longer reports per-wave scores such as a "suite average
+  9.21/10" attributed to blind-test sessions by independent agents. Those figures had no
+  retained transcripts, could not be reproduced, and one was mis-stated in place. The page
+  now carries a provenance block (script, package version, commit, Python, numeric stack)
+  for a run that was actually executed and re-executed while writing it, plus the full
+  25-case result table, the 12 cases that carry a numeric oracle, and an explicit statement
+  of what the automated layer does not check. The stored reports are described as
+  maintainer-authored rather than as independent-agent output.
+- `docs/benchmark-results.md` described "skill version at test time: v1.3.0 content". No 1.3.0
+  exists in this repository's release line; the claim is removed.
+- `docs/example-gallery.md` labels its 18 examples as illustrative worked reports rather than
+  measured results, and states the parameter-provenance conventions (`exo`/`endo`,
+  `lit.`/`data`/`est.`).
+- `docs/worked-examples.md` is labelled as illustrative sketches with no recorded run, and
+  points at the graded corpus for reproducible numbers.
+- This changelog now separates the upstream lineage from this distribution's releases, so a
+  reader can tell which version numbers refer to a real release here.
+
+## Releases (axiomize-quantum-skills-2.0)
 
 ## [1.2.0] - 2026-09-30
 
@@ -78,6 +220,13 @@ All notable changes to Axiomize are documented here. Axiomize follows semantic v
   have reports and grade 10/10
 - CI fully green across Python 3.10-3.13 and Linux/macOS/Windows wheel smoke;
   trusted-publishing release pipeline publishes the exact tested wheel to PyPI
+
+# Upstream lineage: Furox-Art/axiomize
+
+Everything below was released from the `Furox-Art/axiomize` repository, not from the
+`axiomize-quantum-skills-2.0` distribution. No tag below exists on this repository's
+Releases page, and none of these version numbers identifies a build of this package. The
+code described here is what became this package at 1.0.0 on 2026-09-19.
 
 ## [2.1.0] - 2026-09-16
 

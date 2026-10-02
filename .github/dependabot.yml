@@ -1,14 +1,99 @@
 version: 2
 updates:
-  # Only github-actions. There is no pip manifest in this repo , the two
-  # runtime packages the validators need (numpy, scipy) are installed inline
-  # by the CI step, so there is nothing for the pip ecosystem to watch.
+  # pip is watched, and the reason is worth recording because the previous
+  # version of this file claimed the opposite: "There is no pip manifest in this
+  # repo, the two runtime packages the validators need are installed inline by
+  # the CI step, so there is nothing for the pip ecosystem to watch."
+  #
+  # That was wrong on both counts. pyproject.toml declares 12 runtime
+  # dependencies (numpy, scipy, sympy, networkx, statsmodels, matplotlib,
+  # z3-solver, control, cvxpy, casadi, PyYAML and the platform-markered second
+  # z3-solver entry), and requirements-test.txt is the file CI installs
+  # verbatim. Nothing was watching either, so a security-relevant release in
+  # z3-solver or casadi surfaced only when pip-audit happened to fail a build
+  # rather than as a reviewable dependency PR.
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Etc/UTC"
+    labels:
+      - "dependencies"
+      - "python"
+    commit-message:
+      prefix: "deps"
+    # Direct dependencies only. A transitive bump is not reviewable from this
+    # repository and would arrive as noise; pip-audit is the backstop for those.
+    allow:
+      - dependency-type: "direct"
+    # One PR per family rather than one per package, so reviewing twelve version
+    # bumps does not require twelve merges. Runtime packages stay in their own
+    # group so a numpy bump is never bundled with a test-tooling bump.
+    groups:
+      runtime:
+        dependency-type: "production"
+        patterns:
+          - "*"
+        exclude-patterns:
+          - "pytest*"
+          - "mypy"
+          - "ruff"
+          - "pip-audit"
+          - "twine"
+          - "build"
+          - "mkdocs*"
+          - "types-*"
+          - "hatchling"
+      test-tooling:
+        patterns:
+          - "pytest*"
+          - "pytest-cov"
+          - "coverage"
+          - "mypy"
+          - "types-*"
+          - "ruff"
+          - "pip-audit"
+          - "twine"
+          - "build"
+          - "mkdocs*"
+
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Etc/UTC"
     labels:
       - "dependencies"
       - "github-actions"
     commit-message:
       prefix: "ci"
+    # Every action in .github/workflows/ is pinned to a 40-hex commit SHA and the
+    # security contract enforces it, so a Dependabot bump rewrites the SHA and
+    # leaves the trailing `# vX.Y.Z` comment for the reviewer to read. Grouped
+    # because these bumps must be taken together: a mixed-SHA workflow file is a
+    # review hazard.
+    groups:
+      actions:
+        patterns:
+          - "*"
+
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Etc/UTC"
+    labels:
+      - "dependencies"
+      - "javascript"
+    commit-message:
+      prefix: "deps"
+    # The package has no runtime dependencies, so this only ever sees
+    # devDependencies; it is declared so that adding one does not silently go
+    # unwatched.
+    open-pull-requests-limit: 5

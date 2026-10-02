@@ -3,72 +3,83 @@ name: Pages
 on:
   push:
     branches: [main]
+  # Build the site on pull requests too, without deploying. Previously the docs
+  # were only built after landing, so a broken link or an unstageable page could
+  # not be caught in review.
+  pull_request:
+    branches: [main]
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
-  group: pages
+  group: pages-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   build:
-    if: github.ref == 'refs/heads/main'
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.12"
-      - run: pip install mkdocs-material
+      - run: pip install "mkdocs-material==9.6.20" "mkdocs==1.6.1" pyyaml
+      # Staging lives in a script, shared with the pull-request job below.
+      #
+      # It used to be inline shell in both jobs, and the copy that linked the
+      # staged skill pages at Furox-Art/axiomize -- a different repository --
+      # shipped to the live site. The script points every rewritten link at this
+      # repository and fails if any staged page links into another one, so the
+      # mistake cannot be reintroduced by editing one job and not the other.
       - name: Stage skill docs
-        # SKILL.md and the perspective heads are written to be browsed inside
-        # skills/axiomize/, so their relative links do not survive being
-        # concatenated into a single docs/ page. Everything that is NOT staged
-        # into docs/ is rewritten to an absolute GitHub URL. `mkdocs build
-        # --strict` below keeps this list honest.
-        run: |
-          cp skills/axiomize/rigor.md docs/rigor.md
-          cp skills/axiomize/archetypes.md docs/archetypes.md
-          cp skills/axiomize/adaptive-workflow.md docs/adaptive-workflow.md
-          SKILL_URL='https://github.com/Furox-Art/axiomize/tree/main/skills/axiomize'
-          {
-            echo "# The workflow"
-            cat skills/axiomize/SKILL.md
-            printf '\n\n# The lenses\n\n'
-            for f in skills/axiomize/perspectives/*.md; do
-              echo "## $(basename "$f" .md)"
-              echo
-              head -n 12 "$f"
-              echo
-            done
-          } | sed -E "
-              s#\]\(perspectives/#](${SKILL_URL}/perspectives/#g
-              s#\]\(templates/#](${SKILL_URL}/templates/#g
-              s#\]\(first-principles\.md#](${SKILL_URL}/first-principles.md#g
-              s#\]\((agent-based|causal-inference|control|decision-theory|demographic|deterministic|game-theory|information-theory|network|optimization|reliability|spatial|spc|stochastic|thermodynamic)\.md#](${SKILL_URL}/perspectives/\1.md#g
-            " > docs/skill.md
-          {
-            echo "# Worked examples"
-            for f in examples/*.md; do
-              echo "## $(basename "$f" .md)"
-              echo
-              head -n 8 "$f"
-              echo
-            done
-          } > docs/examples.md
+        run: python .github/scripts/stage_docs.py
       - run: mkdocs build --strict
+      # `mkdocs build --strict` only fails on link, reference and heading
+      # problems. A page that exists but is missing from `nav` is reported at
+      # INFO and the site builds with it unreachable, which is how 14 pages
+      # shipped unpublished-in-practice. This makes that condition fatal.
+      - name: Fail when a page is unreachable from the navigation
+        run: python .github/scripts/check_docs_nav.py
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5
         with:
           path: site
+
+  build-pr:
+    name: docs (pull request)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.12"
+      - run: pip install "mkdocs-material==9.6.20" "mkdocs==1.6.1" pyyaml
+      - name: Stage skill docs
+        run: python .github/scripts/stage_docs.py
+      - run: mkdocs build --strict
+      - name: Fail when a page is unreachable from the navigation
+        run: python .github/scripts/check_docs_nav.py
+
   deploy:
     needs: build
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
     steps:
       - id: deployment
         uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5

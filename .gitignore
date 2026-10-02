@@ -8,10 +8,18 @@ __pycache__/
 texput.log
 
 # mkdocs output, plus the pages that the Pages workflow stages into docs/ from
-# skills/axiomize before building. Generated on every build, never authored.
+# skills/axiomize and examples/ before building, via
+# .github/scripts/stage_docs.py. Generated on every build, never authored.
+#
+# `docs/adaptive-workflow.md` was missing from this list. The Pages workflow
+# has always copied that file into docs/, but because it was not ignored a local
+# staging run left it staged and untracked -- and one is about to be committed by
+# accident, which would then be a hand-edited copy of a file that already exists
+# in skills/axiomize/. Every page the staging script writes is listed here.
 site/
 docs/rigor.md
 docs/archetypes.md
+docs/adaptive-workflow.md
 docs/skill.md
 docs/examples.md
 
@@ -23,4 +31,9 @@ build/
 .coverage
 coverage.xml
 htmlcov/
+# Scoped to the repository root: the bare `cov*.txt` pattern also matched
+# .github/coverage-floor.txt, which is a committed CI gate, and silently
+# excluded it from every commit.
 cov*.txt
+!/.github/coverage-floor.txt
+!/.github/mypy-baseline.txt

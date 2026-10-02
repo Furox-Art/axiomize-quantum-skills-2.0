@@ -1,14 +1,61 @@
 site_name: Axiomize Quantum Skills 2.0
 site_description: Scientific modeling plus quantum-inspired multi-branch reasoning for AI agents, model selection, parameter estimation, sensitivity analysis, uncertainty quantification, Bayesian and causal reasoning, and reproducible research.
+# site_url makes mkdocs emit a populated sitemap.xml. Without it the build succeeds but
+# publishes an empty <urlset/>, which is invisible to crawlers. Keep in sync with
+# repository homepage and pyproject [project.urls] Documentation.
+site_url: https://furox-art.github.io/axiomize-quantum-skills-2.0/
 repo_url: https://github.com/Furox-Art/axiomize-quantum-skills-2.0
+repo_name: Furox-Art/axiomize-quantum-skills-2.0
+edit_uri: edit/main/docs/
+copyright: MIT licensed - Copyright (c) 2026 Furkan
 theme:
   name: material
   palette:
     primary: indigo
+  features:
+    - navigation.sections
+    - navigation.top
+    - content.code.copy
+
+# Site search. Material's search plugin is not enabled by default, so /search/ used to
+# return 404 on the published site.
+plugins:
+  - search
+
+# Every committed page under docs/ is listed here. `mkdocs build --strict` only
+# fails on link and heading problems, so a page that exists but is not in the
+# navigation is merely reported at INFO level and the site builds with it
+# unreachable: 14 pages were in that state, including all six security
+# documents and the tutorial. The Pages workflow now promotes that condition to
+# a hard failure, and .github/scripts/check_docs_nav.py enforces it, so this
+# list has to stay complete.
+#
+# rigor.md, archetypes.md, adaptive-workflow.md, skill.md and examples.md are
+# staged into docs/ from skills/axiomize and examples/ by the Pages workflow and
+# are gitignored; they appear here because they are part of the site.
 nav:
   - Home: index.md
-  - Adaptive workflow: adaptive-workflow.md
-  - Workflow & lenses: skill.md
-  - Rigor ladder: rigor.md
-  - Archetypes: archetypes.md
-  - Example gallery: example-gallery.md
+  - Workflow:
+      - The workflow: skill.md
+      - Adaptive workflow: adaptive-workflow.md
+      - Rigor ladder: rigor.md
+      - Archetypes: archetypes.md
+  - Guides:
+      - Tutorial: tutorial.md
+      - Worked examples: examples.md
+      - Example gallery: example-gallery.md
+      - Worked example notes: worked-examples.md
+      - Integrations: integrations.md
+      - Portable export: portable-export.md
+  - Reference:
+      - Benchmark results: benchmark-results.md
+  - Security:
+      - Overview: security.md
+      - Security policy versions: security-versioning.md
+      - CI contract: security-ci-contract.md
+      - Release checklist: security-release-checklist.md
+      - Maintenance: security-maintenance.md
+      - Non-goals: security-non-goals.md
+      - Audit 1.11.2: security-audit-1.11.2.md
+  - Publishing:
+      - Publishing checklist: publishing-checklist.md

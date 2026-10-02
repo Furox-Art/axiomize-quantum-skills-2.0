@@ -1,0 +1,31 @@
+{
+  "model_ir": {
+    "schema_version": "1.0",
+    "name": "member-churn-decay",
+    "domain": "social",
+    "family": "ode",
+    "independent_variable": "t",
+    "independent_unit": "day",
+    "variables": [
+      {"name": "x", "unit": "persons", "initial": 1000.0, "bounds": [0.0, null]}
+    ],
+    "parameters": [
+      {"name": "k", "unit": "1/day", "value": 0.01, "bounds": [0.0, 2.0]}
+    ],
+    "equations": [
+      {"target": "x", "expression": "-k*x", "kind": "derivative"}
+    ],
+    "constraints": [
+      {
+        "name": "member_floor",
+        "expression": "x",
+        "relation": "ge",
+        "threshold": 0.0,
+        "scientific_basis": "member count cannot be negative"
+      }
+    ],
+    "assumptions": [
+      "net churn is proportional to the current member base"
+    ]
+  }
+}

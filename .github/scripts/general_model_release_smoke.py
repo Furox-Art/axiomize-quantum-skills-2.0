@@ -11,14 +11,18 @@ from __future__ import annotations
 import json
 import math
 import shutil
-import socket
 import subprocess
 import sys
 import tempfile
-import time
-import urllib.request
 from pathlib import Path
 from typing import Any
+
+from rest_auth import (
+    RestAuthFailure,
+    RestServer,
+    assert_rejects_unauthenticated,
+    make_token,
+)
 
 
 class SmokeFailure(RuntimeError):
@@ -159,65 +163,45 @@ def _test_cli(work: Path) -> None:
     _assert("numerical" in separated and "parameter" in separated, "numerical uncertainty was not separated")
 
 
-def _free_port() -> int:
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-        sock.bind(("127.0.0.1", 0))
-        return int(sock.getsockname()[1])
-
-
-def _post(url: str, payload: dict[str, Any]) -> dict[str, Any]:
-    request = urllib.request.Request(
-        url,
-        data=json.dumps(payload).encode("utf-8"),
-        headers={"Content-Type": "application/json"},
-        method="POST",
-    )
-    with urllib.request.urlopen(request, timeout=10) as response:
-        body = json.loads(response.read().decode("utf-8"))
-    if not isinstance(body, dict):
-        raise SmokeFailure("REST returned non-object JSON")
-    return body
-
-
 def _test_rest() -> None:
-    axiomize = _exe()
-    port = _free_port()
-    proc = subprocess.Popen(
-        [axiomize, "serve", "--host", "127.0.0.1", "--port", str(port)],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.PIPE,
-        text=True,
-    )
-    try:
-        url = f"http://127.0.0.1:{port}/v1/simulate"
-        last: Exception | None = None
-        for _ in range(50):
-            if proc.poll() is not None:
-                stderr = proc.stderr.read() if proc.stderr else ""
-                raise SmokeFailure(f"REST server exited early: {stderr}")
-            try:
-                result = _post(url, {"model_ir": _model(), "t_span": [0.0, 1.0], "points": 20})
-                break
-            except Exception as exc:
-                last = exc
-                time.sleep(0.1)
-        else:
-            raise SmokeFailure(f"REST general-model endpoint never became ready: {last!r}")
-        _assert(result.get("status") == "PASS" and result.get("family") == "ode", f"REST model failed: {result}")
+    """Exercise the general-model REST routes with a bearer token.
 
-        numerical = _post(
-            f"http://127.0.0.1:{port}/v1/model/numerical-verify",
-            {"model_ir": _pde_model(), "t_span": [0.0, 1.0], "points": 21},
+    Both routes here are mutating (POST), so the server requires a credential
+    even though it binds to loopback. A token is generated per run, handed to
+    ``axiomize serve`` through AXIOMIZE_REST_TOKEN, and presented on every
+    request. Supplying it ourselves also gates the read routes, so the readiness
+    probe is authenticated.
+    """
+    axiomize = _exe()
+    token = make_token()
+    with RestServer(axiomize, token) as server:
+        # Authenticated readiness probe on a read route.
+        caps = server.wait_until_ready("/capabilities", timeout=5.0)
+        _assert(isinstance(caps, dict), "REST /capabilities returned a non-object")
+
+        result = server.request_json(
+            "/simulate",
+            payload={"model_ir": _model(), "t_span": [0.0, 1.0], "points": 20},
         )
-        _assert(numerical.get("status") == "APPROVAL_REQUIRED", f"REST numerical gate missing: {numerical}")
-    finally:
-        if proc.poll() is None:
-            proc.terminate()
-            try:
-                proc.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                proc.kill()
-                proc.wait(timeout=5)
+        _assert(
+            result.get("status") == "PASS" and result.get("family") == "ode",
+            f"REST model failed: {result}",
+        )
+
+        numerical = server.request_json(
+            "/model/numerical-verify",
+            payload={"model_ir": _pde_model(), "t_span": [0.0, 1.0], "points": 21},
+        )
+        _assert(
+            numerical.get("status") == "APPROVAL_REQUIRED",
+            f"REST numerical gate missing: {numerical}",
+        )
+
+        # A wrong token must be rejected, and so must no token. Without these the
+        # suite would still pass if the requirement were quietly dropped.
+        assert_rejects_unauthenticated(
+            server, "/simulate", {"model_ir": _model(), "t_span": [0.0, 1.0], "points": 20}
+        )
 
 
 def _test_mcp() -> None:
@@ -287,6 +271,6 @@ def main() -> int:
 if __name__ == "__main__":
     try:
         raise SystemExit(main())
-    except SmokeFailure as exc:
+    except (SmokeFailure, RestAuthFailure) as exc:
         print(f"RESULT: FAIL - {exc}", file=sys.stderr)
         raise SystemExit(1)
