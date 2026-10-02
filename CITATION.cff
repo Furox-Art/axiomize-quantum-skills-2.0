@@ -1,0 +1,30 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "Axiomize Quantum Skills: a scientific modeling engine with quantum-inspired multi-branch reasoning"
+abstract: >-
+  Axiomize turns a plain-language idea into competing mathematical models. The modeling
+  layer provides a versioned Model IR with explicit units, dimensional and numerical
+  validation, calibration, uncertainty quantification and portable export, executed through
+  a CLI, a REST API and an MCP server. A second, independent skill keeps several candidate
+  hypotheses alive, scores them against evidence, prunes weak branches and collapses to a
+  conclusion only when the evidence supports it.
+type: software
+version: 1.2.0
+date-released: "2026-09-30"
+license: MIT
+repository-code: "https://github.com/Furox-Art/axiomize-quantum-skills-2.0"
+url: "https://furox-art.github.io/axiomize-quantum-skills-2.0/"
+keywords:
+  - scientific-computing
+  - mathematical-modeling
+  - dimensional-analysis
+  - uncertainty-quantification
+  - causal-inference
+  - bayesian-inference
+  - model-selection
+  - agent-skills
+  - multi-branch-reasoning
+  - reproducibility
+authors:
+  - family-names: Furkan
+    alias: Furox-Art

@@ -1,28 +1,107 @@
 # Axiomize Quantum Skills 2.0
 
-**Axiomize Quantum Skills 2.0** combines rigorous scientific modeling with
-quantum-inspired multi-branch reasoning for AI agents.
+A scientific modeling engine with explicit units, dimensional and numerical validation,
+calibration and uncertainty analysis — plus a reasoning protocol that refuses to commit to
+the first plausible answer.
 
-It is designed for problems where both the mathematical formulation and the
-reasoning path matter: **model selection**, **parameter estimation**,
-**sensitivity analysis**, **uncertainty quantification**, **Bayesian and causal
-reasoning**, hypothesis comparison, and reproducible scientific workflows.
+Two pieces ship together:
 
-The modeling layer makes assumptions, equations, parameters, units, validation,
-and exports explicit. The reasoning layer keeps multiple candidate approaches
-alive, scores them against evidence, prunes weak branches, and merges or
-collapses only when the evidence supports doing so.
+| Piece | What it is |
+|---|---|
+| **Axiomize** | Versioned Model IR; algebraic, ODE, stochastic, PDE, optimization, control, network, Bayesian and causal execution; dimensional checks; fit; sensitivity; uncertainty; portable export |
+| **Quantum Reasoning** | A protocol and deterministic branch controller that keeps several hypotheses alive, scores them against evidence, prunes weak ones, and collapses only when the evidence supports it |
+
+Use it when both the **mathematical formulation** and the **reasoning path** matter: model
+selection, parameter estimation, sensitivity analysis, uncertainty quantification, Bayesian
+and causal reasoning, hypothesis comparison, and reproducible scientific workflows.
+
+"Quantum" here is a metaphor for deferring commitment. It runs on classical models and
+classical hardware.
+
+## See it work
+
+The reference SIR model, animated. beta = 0.3, gamma = 0.1, so R0 = 3.0.
+
+![Animated SIR epidemic curve, R0=3.0](sir-demo.gif)
+
+The same run at full resolution, peak annotated:
+
+![SIR beta=0.3 gamma=0.1 R0=3.00, peak 300,465 at day 61](sir-example.png)
+
+A sample of the LaTeX report the engine converts a finished analysis into:
+[report-sample.pdf](report-sample.pdf) (source: [report-sample.tex](report-sample.tex)).
 
 ## Quick start
 
 ```bash
 pip install axiomize-quantum-skills-2.0
-# or
-npx axiomize-quantum
 ```
 
-Use this package when a task benefits from both **mathematical modeling** and
-**multi-branch reasoning** rather than a single first-pass answer.
+Python 3.10+. Then:
 
-- [GitHub repository](https://github.com/Furox-Art/axiomize-quantum-skills-2.0)
-- [PyPI package](https://pypi.org/project/axiomize-quantum-skills-2.0/)
+```bash
+axiomize tools        # which scientific backends are really installed
+axiomize benchmark    # install-safe self-test
+axiomize validate --N 1000000
+```
+
+Verified at version 1.2.0, commit `338bc9e`, CPython 3.12.10:
+
+```json
+{"status": "PASS", "passed": 12, "total": 12, ...}
+```
+
+```json
+{"status": "PASS", "cross_validation": {"status": "PASS", ...},
+ "numeric_theory_check": {"status": "INCONCLUSIVE", ...}}
+```
+
+The `INCONCLUSIVE` is intentional: the closed-form final-size formula has not converged at
+that horizon, and the engine says so instead of reporting a pass it has not earned.
+
+Full walkthrough: [tutorial.md](tutorial.md).
+
+## What ships
+
+- **15 mathematical perspectives** under `skills/axiomize/perspectives/`, plus archetype
+  and first-principles routing.
+- **Two agent skills** as plain Markdown: `skills/axiomize/` (modeling) and
+  `skills/quantum-reasoning/` (branch management). Install them without the Python package.
+- **18 worked examples** in `examples/`.
+- **Three interfaces** over one core: CLI (`axiomize`, 14 subcommands), MCP over stdio
+  (34 tools), and a loopback-by-default REST API (v1).
+- **A 25-case closed-form benchmark corpus** graded in CI, with reproducible provenance in
+  [benchmark-results.md](benchmark-results.md).
+
+## Honest limits
+
+- The engine does not choose your model. `axiomize model --action plan` ranks candidate
+  families and then returns `NEEDS_MODEL_IR`.
+- Optional backends (`pymc`, `jax`, FEniCS/DOLFINx) report `UNAVAILABLE` unless genuinely
+  installed. Use `pip install axiomize-quantum-skills-2.0[full]` for `pymc` and `jax`.
+- Benchmark scores measure report-contract compliance, not scientific correctness. The
+  human rubric layer is defined but unscored.
+- Arbitrary code and theorem elaboration are not an OS sandbox. See
+  [security.md](security.md).
+- The npm launcher is fixed in the repository but not yet published: npm still serves
+  `2.0.0`, published before the fix, so `npx axiomize-quantum` still fails. `package.json`
+  is pinned to `1.2.0` in lockstep with Python, so the next npm release carries the fix.
+  Use PyPI.
+
+## Links
+
+| | |
+|---|---|
+| Repository | <https://github.com/Furox-Art/axiomize-quantum-skills-2.0> |
+| PyPI | <https://pypi.org/project/axiomize-quantum-skills-2.0/> |
+| Documentation | <https://furox-art.github.io/axiomize-quantum-skills-2.0/> |
+| Tutorial | [tutorial.md](tutorial.md) |
+| Example gallery | [example-gallery.md](example-gallery.md) |
+| Benchmark results | [benchmark-results.md](benchmark-results.md) |
+| Integrations | [integrations.md](integrations.md) |
+| Security | [security.md](security.md) · [SECURITY.md on GitHub](https://github.com/Furox-Art/axiomize-quantum-skills-2.0/blob/main/SECURITY.md) |
+| Contributing | <https://github.com/Furox-Art/axiomize-quantum-skills-2.0/blob/main/CONTRIBUTING.md> |
+| Code of Conduct | <https://github.com/Furox-Art/axiomize-quantum-skills-2.0/blob/main/CODE_OF_CONDUCT.md> |
+| Changelog | <https://github.com/Furox-Art/axiomize-quantum-skills-2.0/blob/main/CHANGELOG.md> |
+| Citation | <https://github.com/Furox-Art/axiomize-quantum-skills-2.0/blob/main/CITATION.cff> |
+| License | MIT |
