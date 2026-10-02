@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/Furox-Art/axiomize-quantum-skills-2.0/blob/main/SECURITY.md
+    about: Do not open a public issue for a vulnerability. See SECURITY.md for the current private reporting route.
+  - name: Documentation
+    url: https://furox-art.github.io/axiomize-quantum-skills-2.0/
+    about: Start here if the question is "how do I use this" — tutorial, integrations and the example gallery.
+  - name: Contributing and contracts
+    url: https://github.com/Furox-Art/axiomize-quantum-skills-2.0/blob/main/CONTRIBUTING.md
+    about: Adding a perspective lens, a worked example, or a benchmark case? Read the contracts first.
