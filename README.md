@@ -2,7 +2,7 @@
 
 This is not a separate product. It ships [axiomize](https://github.com/Furox-Art/axiomize) and [quantum-reasoning-skill](https://github.com/Furox-Art/quantum-reasoning-skill) together. Install those repositories when you need only one of them. This repository is not a second MCP registration.
 
-Current package line: **1.2.0**
+Current package line: **1.2.1**
 
 ![License](https://img.shields.io/badge/license-MIT-blue)
 ![Python](https://img.shields.io/python-3.10%2B-blue)
@@ -15,7 +15,7 @@ Download numbers live on the package pages themselves, where they are always cur
 [PyPI](https://pypi.org/project/axiomize-quantum-skills-2.0/) ·
 [npm](https://www.npmjs.com/package/axiomize-quantum-skills-2.0)
 
-**PyPI and npm are both on `1.2.0`.** The npm package is a **thin Node launcher shim**, not
+**PyPI and npm both carry the release named above.** The npm package is a **thin Node launcher shim**, not
 the engine: six files, about 44 kB, one job — spawn the Python CLI. So install the Python
 package first. It is published over OIDC trusted publishing and carries Sigstore and SLSA v1
 provenance attestations; details and a verification recipe are in
@@ -68,7 +68,7 @@ fenics                  UNAVAILABLE (fenics not installed)
 ```
 
 The full list has 13 entries. `axiomize capabilities` is the machine-readable equivalent and
-leads with `"axiomize_version": "1.2.0"`.
+leads with `"axiomize_version": "1.2.1"`.
 
 ### 2. Run the install-safe benchmark suite
 
@@ -215,7 +215,7 @@ in [benchmarks/rubric.md](benchmarks/rubric.md) is not recorded for these cases;
   axiomize.cli` directly if you do not want the extra hop.
 - npm also still holds `2.0.0`, published before the launcher fix, whose `index.js` is the
   old syntactically invalid one. It is **not** the `latest` dist-tag any more, so a plain
-  `npm install axiomize-quantum-skills-2.0` resolves to `1.2.0`. If you have pinned or
+  `npm install axiomize-quantum-skills-2.0` resolves to the current release. If you have pinned or
   installed `2.0.0`, upgrade.
 
 ## Documentation

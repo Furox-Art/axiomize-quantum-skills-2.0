@@ -71,3 +71,49 @@ def test_release_workflow_ref_guard_allows_main(monkeypatch: pytest.MonkeyPatch)
     monkeypatch.setenv("GITHUB_WORKFLOW", "Release")
     monkeypatch.setenv("GITHUB_REF", "refs/heads/main")
     assert module.main() == 0
+
+
+@pytest.mark.parametrize(
+    "rotting_line",
+    [
+        "**PyPI and npm are both on `1.2.0`.** The npm package is a shim.",
+        "  `npm install axiomize-quantum-skills-2.0` resolves to `1.2.0`. If you pinned it, upgrade.",
+        'leads with `"axiomize_version": "1.2.0"`.',
+    ],
+)
+def test_readme_currency_guard_rejects_a_stale_installed_version(rotting_line: str) -> None:
+    """Each shape here shipped once and was wrong the moment a release was cut."""
+    module = _release_contract_module()
+    failures = module._readme_currency_failures(rotting_line, "1.2.1")
+    assert len(failures) == 1
+    assert "1.2.0" in failures[0]
+    assert "1.2.1" in failures[0]
+
+
+@pytest.mark.parametrize(
+    "honest_line",
+    [
+        # Restated without a pin, which is what the fix for the rot looks like.
+        "**PyPI and npm both carry the release named above.**",
+        "  `npm install axiomize-quantum-skills-2.0` resolves to the current release.",
+        'leads with `"axiomize_version": "1.2.1"`.',
+        # Provenance naming a fixed past event must stay allowed forever: bumping
+        # these to the current version would make them false, not true.
+        "## Quick start (verified against 1.2.0)",
+        "Every command above was run against `axiomize-quantum-skills-2.0` 1.2.0 at commit `9c2990c`",
+        "(also `axiomize-benchmark`). Re-graded at commit `9c2990c`, axiomize 1.2.0, CPython 3.12.10",
+        # A different, deliberately-discussed registry version is not drift.
+        "- npm also still holds `2.0.0`, published before the launcher fix.",
+    ],
+)
+def test_readme_currency_guard_allows_truthful_and_historical_claims(honest_line: str) -> None:
+    module = _release_contract_module()
+    assert module._readme_currency_failures(honest_line, "1.2.1") == []
+
+
+def test_readme_currency_guard_is_satisfied_by_the_real_readme() -> None:
+    """The guard has to pass on the README as committed, not just on samples."""
+    module = _release_contract_module()
+    text = (module.ROOT / "README.md").read_text(encoding="utf-8")
+    current = module._readme_version()
+    assert module._readme_currency_failures(text, current) == []

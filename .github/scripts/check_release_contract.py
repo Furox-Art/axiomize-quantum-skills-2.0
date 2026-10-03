@@ -135,12 +135,51 @@ def _dependency_markers_are_consistent() -> list[str]:
     return failures
 
 
+def _readme_text() -> str:
+    return (ROOT / "README.md").read_text(encoding="utf-8")
+
+
 def _readme_version() -> str:
-    text = (ROOT / "README.md").read_text(encoding="utf-8")
+    text = _readme_text()
     match = re.search(r"^Current package line:\s*\*\*([^*]+)\*\*", text, re.MULTILINE)
     if not match:
         raise RuntimeError("README.md has no 'Current package line' version")
     return match.group(1).strip()
+
+
+#: README claims that rot. Each pattern captures a version the README presents as
+#: the one a reader will actually get, so the value is only true until the next
+#: bump. Deliberately absent: pinned provenance such as "run against 1.2.0 at
+#: commit 9c2990c". That names a fixed past event, cannot drift, and restamping
+#: it with the current version would turn a true sentence into a false one. The
+#: guard therefore has to tell "this is what you get" apart from "this is what I
+#: tested", which is why it matches claim shapes instead of every semver token --
+#: matching tokens would also flag the deliberately-quoted broken npm 2.0.0.
+CURRENCY_CLAIM_PATTERNS = (
+    re.compile(
+        r"\b(?:PyPI\s+and\s+npm|PyPI|npm)\b[^.\n]{0,40}?\b(?:are|is)\b[^`.\n]{0,24}?\bon\s+`([0-9]+\.[0-9]+\.[0-9]+)`"
+    ),
+    re.compile(r"\bresolves\s+to\s+`([0-9]+\.[0-9]+\.[0-9]+)`"),
+    re.compile(r'"axiomize_version"\s*:\s*"([0-9]+\.[0-9]+\.[0-9]+)"'),
+)
+
+
+def _readme_currency_failures(text: str, current: str) -> list[str]:
+    """Return README claims that name a version other than ``current``.
+
+    Split out from ``main`` and given the text as an argument so a test can prove
+    it goes red on a bad claim without editing the real README.
+    """
+    failures: list[str] = []
+    for lineno, line in enumerate(text.splitlines(), start=1):
+        for pattern in CURRENCY_CLAIM_PATTERNS:
+            for found in pattern.findall(line):
+                if found != current:
+                    failures.append(
+                        f"README.md:{lineno} tells the reader they get {found!r}, "
+                        f"but the release is {current!r}"
+                    )
+    return failures
 
 
 def _changelog_version() -> str:
@@ -209,6 +248,18 @@ def main() -> int:
             print(f"  - {failure}", file=sys.stderr)
         return 1
     print("dependency markers: pyproject and requirements-test.txt agree")
+
+    currency_failures = _readme_currency_failures(_readme_text(), versions["readme"])
+    if currency_failures:
+        print(
+            "FAIL: README.md states a version the reader will not get; "
+            "restate the claim without pinning, or fix the value",
+            file=sys.stderr,
+        )
+        for failure in currency_failures:
+            print(f"  - {failure}", file=sys.stderr)
+        return 1
+    print("README currency claims: none contradict the release version")
 
     # Cross-check against the shared helper so both gates read one definition.
     try:
