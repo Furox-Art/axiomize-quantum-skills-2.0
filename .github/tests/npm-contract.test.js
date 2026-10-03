@@ -280,3 +280,244 @@ test('version lockstep helper is importable and idempotent', () => {
     `version sources disagree: ${JSON.stringify(payload.versions, null, 2)}`,
   );
 });
+
+// ---------------------------------------------------------------------------
+// The publish workflow itself.
+//
+// These read the YAML as text rather than parsing it, deliberately: there is no
+// YAML dependency in this package, and the assertions that matter are about the
+// shape of the two publish commands, not about the file being valid YAML. The
+// `npm-contract` CI job and the release workflow both fail loudly on a YAML
+// syntax error, so validity is covered elsewhere.
+// ---------------------------------------------------------------------------
+
+const PUBLISH_WORKFLOW = '.github/workflows/npm-publish.yml';
+
+// The bodies of the two steps, so an assertion can talk about one mode without
+// matching text from the other.
+function stepBody(source, nameFragment) {
+  const lines = source.split('\n');
+  const start = lines.findIndex((l) => l.includes('name:') && l.includes(nameFragment));
+  assert.notStrictEqual(start, -1, `npm-publish.yml has no step named ${nameFragment}`);
+  const body = [];
+  for (let i = start + 1; i < lines.length; i += 1) {
+    // A new step or a key at lower indentation ends this one.
+    if (/^\s{6}- (name|uses|run|if):/.test(lines[i])) break;
+    if (/^\s{4}\S/.test(lines[i])) break;
+    body.push(lines[i]);
+  }
+  return body.join('\n');
+}
+
+test('publish workflow declares both credential modes', () => {
+  const source = read(PUBLISH_WORKFLOW);
+
+  // OIDC remains the default: the fallback must be opt-in, never a silent
+  // downgrade chosen by the workflow itself.
+  assert.match(
+    source,
+    /use_token_fallback:\s*$/m,
+    'workflow_dispatch must expose a use_token_fallback input',
+  );
+  assert.match(
+    source,
+    /default:\s*false\b/,
+    'use_token_fallback must default to false so OIDC stays the default path',
+  );
+  assert.match(source, /type:\s*boolean\b/, 'use_token_fallback must be a boolean input');
+  assert.match(
+    source,
+    /mode=token/,
+    'the workflow must resolve a token mode',
+  );
+  assert.match(source, /mode=oidc/, 'the workflow must resolve an OIDC mode');
+
+  // Both modes need id-token: write declared, because job permissions cannot be
+  // set per step and either mode may run.
+  assert.match(source, /id-token:\s*write/, 'OIDC mode requires the id-token: write permission');
+});
+
+function publishCommand(step) {
+  // Handles both YAML shapes: `run: npm publish ...` on one line, and a block
+  // scalar whose first line is the bare command.
+  for (const raw of step.split('\n')) {
+    const line = raw.trim();
+    if (line.startsWith('npm publish')) return line;
+    if (line.startsWith('run: npm publish')) return line.slice('run:'.length).trim();
+  }
+  return undefined;
+}
+
+test('OIDC mode publishes with provenance and the explicit dist-tag', () => {
+  const source = read(PUBLISH_WORKFLOW);
+  const step = stepBody(source, 'Publish to npm with OIDC Trusted Publishing');
+  const command = publishCommand(step);
+
+  assert.ok(command, 'the OIDC step must run an `npm publish` command');
+  assert.match(
+    command,
+    /--provenance/,
+    'OIDC mode must publish with --provenance so the tarball is attested',
+  );
+  assert.match(
+    command,
+    /--tag latest/,
+    'the registry holds 2.0.0, which sorts above this version, so --tag latest is required',
+  );
+  assert.doesNotMatch(
+    command,
+    /NODE_AUTH_TOKEN/,
+    'OIDC mode must not read a token; it authenticates with the OIDC identity',
+  );
+});
+
+test('token mode publishes without provenance and with the explicit dist-tag', () => {
+  const source = read(PUBLISH_WORKFLOW);
+  const step = stepBody(source, 'Publish to npm with the NPM_TOKEN secret');
+  const command = publishCommand(step);
+
+  assert.ok(command, 'the token step must run an `npm publish` command');
+
+  // The point of the mode: a token cannot mint a Sigstore attestation, so
+  // --provenance here would fail the upload rather than degrade quietly.
+  assert.doesNotMatch(
+    command,
+    /--provenance/,
+    'token mode must omit --provenance: a token has no OIDC identity to attest',
+  );
+  assert.match(
+    command,
+    /--tag latest/,
+    'token mode must also pass --tag latest explicitly',
+  );
+
+  // And the credential itself, in the environment rather than inline, so it is
+  // not visible in the command line or in a traceback.
+  assert.match(
+    step,
+    /NODE_AUTH_TOKEN:\s*\$\{\{\s*secrets\.NPM_TOKEN\s*\}\}/,
+    'token mode must pass NPM_TOKEN as NODE_AUTH_TOKEN from the secret',
+  );
+});
+
+test('token mode fails closed when NPM_TOKEN is absent', () => {
+  const source = read(PUBLISH_WORKFLOW);
+  assert.match(
+    source,
+    /Fail closed when the token credential is missing/,
+    'there must be a step that checks the token exists before uploading',
+  );
+  const step = stepBody(source, 'Fail closed when the token credential is missing');
+  assert.match(
+    step,
+    /secrets\.NPM_TOKEN/,
+    'the check must read the secret it is validating',
+  );
+  assert.match(step, /exit 1/, 'the check must exit non-zero when the secret is empty');
+  assert.match(
+    step,
+    /-z "\$\{NPM_TOKEN:-\}"/,
+    'the check must test for an empty or unset token',
+  );
+});
+
+test('workflow runs Node 24 so npm can emit provenance', () => {
+  const source = read(PUBLISH_WORKFLOW);
+  const match = /node-version:\s*"(\d+)"/.exec(source);
+  assert.ok(match, 'setup-node must pin a node-version');
+  const major = Number(match[1]);
+
+  // npm 10.9.9 ships with Node 22 and cannot publish with --provenance; Node 24
+  // ships npm 11.x, which can. The OIDC mode would otherwise upload without the
+  // attestation it asks for.
+  assert.ok(
+    major >= 24,
+    `node-version must be at least 24 for npm >= 11.5.1 provenance support, got ${major}`,
+  );
+});
+
+test('the provenance npm version gate compares numerically, not by regex', () => {
+  const source = read(PUBLISH_WORKFLOW);
+  const step = stepBody(source, 'Require npm >= 11.5.1 for provenance');
+
+  // A regex like /^11\.(5[1-9]|[6-9][0-9])\.|^1[2-9]\./ is wrong twice over:
+  // it rejects 11.5.1 itself (the group demands "51".."59" with no separator) and
+  // it rejects 11.19.0 (a two-digit minor cannot match [6-9][0-9]). Node 24 ships
+  // npm 11.19.0, so that gate would fail a supported toolchain.
+  assert.doesNotMatch(
+    step,
+    /\^\\d|5\[1-9\]|\[6-9\]\[0-9\]/,
+    'the npm version gate must not compare versions with a regex',
+  );
+  assert.match(
+    step,
+    /process\.argv\[1\]/,
+    'the gate must read the running npm version as an argument, not by parsing a regex',
+  );
+  assert.match(step, /11\.5\.1/, 'the required minimum must be stated');
+
+  // Prove the comparison the gate implements accepts the version Node 24 ships
+  // and rejects the one Node 22 ships, which is the whole point.
+  const compare = (a, b) => {
+    const parse = (v) => String(v).replace(/^v/, '').split('-')[0].split('.').map(Number);
+    const pa = parse(a);
+    const pb = parse(b);
+    for (let i = 0; i < 3; i += 1) {
+      const x = pa[i] || 0;
+      const y = pb[i] || 0;
+      if (x !== y) return x < y ? -1 : 1;
+    }
+    return 0;
+  };
+  assert.ok(compare('11.19.0', '11.5.1') > 0, '11.19.0 must satisfy the >= 11.5.1 gate');
+  assert.strictEqual(compare('11.5.1', '11.5.1'), 0, 'the gate must be inclusive at 11.5.1');
+  assert.ok(compare('10.9.9', '11.5.1') < 0, 'npm 10.9.9 must fail the gate');
+  assert.ok(compare('12.0.0', '11.5.1') > 0, 'npm 12 must pass the gate');
+  assert.ok(compare('13.1.2', '11.5.1') > 0, 'a two-digit major must pass the gate');
+  assert.ok(compare('11.100.0', '11.5.1') > 0, 'a two-digit minor must pass the gate');
+});
+
+test('both publish modes keep the pre-publish gates', () => {
+  const source = read(PUBLISH_WORKFLOW);
+  for (const gate of [
+    'Enforce version lockstep across both registries',
+    'Syntax-check the launcher',
+    'Run the npm contract tests',
+    'Check whether this version already exists on the registry',
+    'Assert the tarball contains exactly the intended files',
+  ]) {
+    assert.ok(source.includes(gate), `the publish workflow must keep the '${gate}' step`);
+  }
+  // The gates must run before either publish step, so a re-run can never reach
+  // the registry with an untested or duplicate version.
+  const lockstep = source.indexOf('Enforce version lockstep');
+  const existence = source.indexOf('Check whether this version already exists');
+  const allowlist = source.indexOf('Assert the tarball contains exactly');
+  const oidcPublish = source.indexOf('Publish to npm with OIDC');
+  const tokenPublish = source.indexOf('Publish to npm with the NPM_TOKEN secret');
+  assert.ok(lockstep < oidcPublish && lockstep < tokenPublish, 'lockstep must precede both publishes');
+  assert.ok(existence < oidcPublish && existence < tokenPublish, 'the existence check must precede both publishes');
+  assert.ok(allowlist < oidcPublish && allowlist < tokenPublish, 'the allowlist check must precede both publishes');
+
+  // Neither publish may be allowed to fail quietly. Comments mention the key by
+  // name when explaining why it is absent, so this inspects parsed steps rather
+  // than the raw text: the assertion is about configuration, not prose.
+  const stepLines = source.split('\n');
+  const offenders = stepLines
+    .map((line, i) => ({ line, i }))
+    .filter(({ line }) => /continue-on-error/.test(line))
+    .filter(({ line }) => !/^\s*#/.test(line));
+  assert.strictEqual(
+    offenders.length,
+    0,
+    'no step may set continue-on-error: a failed upload must fail the run. Offending: '
+      + offenders.map(({ line, i }) => `line ${i + 1}: ${line.trim()}`).join('; '),
+  );
+  // environment and least privilege are unchanged.
+  assert.match(source, /name:\s*npm\n/, 'the publish job must keep the npm environment');
+  assert.match(
+    source,
+    /contents:\s*read[\s\S]*id-token:\s*write/,
+    'the job must request only contents:read and id-token:write',
+  );
+});
