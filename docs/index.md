@@ -83,10 +83,9 @@ Full walkthrough: [tutorial.md](tutorial.md).
   human rubric layer is defined but unscored.
 - Arbitrary code and theorem elaboration are not an OS sandbox. See
   [security.md](security.md).
-- The npm launcher is fixed in the repository but not yet published: npm still serves
-  `2.0.0`, published before the fix, so `npx axiomize-quantum` still fails. `package.json`
-  is pinned to `1.2.0` in lockstep with Python, so the next npm release carries the fix.
-  Use PyPI.
+- The npm package is a thin Node launcher shim (6 files, about 44 kB) that spawns the
+  Python CLI; it is not a second implementation, so the Python package must be installed
+  and on `PATH`. PyPI and npm are both on `1.2.0` and the npm tarball is attested.
 
 ## Links
 

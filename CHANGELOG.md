@@ -34,6 +34,66 @@ always be the current version.
 
 ## Unreleased
 
+### Fixed
+
+- **`Release (npm)` no longer reports a successful publish as a failure.** `npm publish`
+  returns when the registry's write path accepts the tarball; the read path is a CDN that
+  converges asynchronously. The verification step polled six times at a flat ten seconds —
+  a sixty-second budget — and exited `1` when that budget ran out. Run `37120477453`
+  published `axiomize-quantum-skills-2.0@1.2.0` successfully and was still failed by its own
+  job with *"not publicly visible after 6 attempts"*, because the read path needed roughly
+  95 seconds. The step now calls `.github/scripts/wait_for_npm_visibility.py`: twelve
+  attempts with a growing backoff (5, 5, 10, 10, 15, 15, 20, 20, 25, 30, 35, 40 — 190s of
+  waiting in total, against a 600s hard ceiling), first match wins. On a deadline miss it
+  emits `::warning::` stating that the upload was not rolled back, and still exits non-zero,
+  so a version that genuinely never appeared fails closed.
+- The visibility check now reads the registry packument over HTTP instead of calling
+  `npm view`, because `npm view` is served from npm's local `_cacache`: the check was a
+  question about the runner's cache rather than about the registry, which is how a warm
+  cache produces a false negative. One request also yields both `versions[<version>]` and
+  `dist-tags.latest` from the same document, so the version and the tag cannot be read
+  inconsistently, and a 404 is distinguishable from a 5xx or a dropped connection.
+- The visibility probe no longer dies on a dropped connection. `http.client.HTTPException`
+  — which includes `RemoteDisconnected`, the shape a CDN returns when it closes a
+  connection mid-response — is not a `urllib.error.URLError`, so catching only the urllib
+  classes let it escape as a traceback and fail the release job on the first flaky read.
+  Found by running the new probe against the live registry, not by inspection.
+- `tests/test_npm_publish_visibility.py` is the regression test, 15 cases covering both
+  directions: absent-then-present is verified rather than misreported, and a version that
+  never appears still fails closed. It drives the poll through injected `probe`/`sleep`/
+  `clock` callables, so it needs no network and no wall-clock delay.
+- The `Release (npm)` header claimed the npmjs.com trusted publisher *"is not yet
+  registered, and mode 1 fails closed without it"*. That is no longer true: the published
+  1.2.0 tarball carries a Sigstore attestation and a SLSA v1 provenance statement built on
+  `https://github.com/actions/runner/github-hosted`, which only a trusted-publishing upload
+  produces. The comment now says so, and describes token mode as the retained escape hatch
+  it now is rather than the only working path.
+
+### Changed
+
+- **npm documentation corrected to match the registry.** npm's `latest` dist-tag is now
+  `1.2.0`, matching PyPI, verified against `registry.npmjs.org`. The README, `docs/index.md`,
+  `docs/integrations.md`, `docs/tutorial.md` and `docs/publishing-checklist.md` said npm was
+  one release behind and unusable; they now describe it as a published, attested
+  **thin Node launcher shim** that spawns the Python CLI and therefore needs the Python
+  package on `PATH`. The npm version badge is back, now that the two registries agree.
+- The `CHANGELOG` note above about the registry holding `2.0.0` "until that publish
+  happens" is superseded: the publish happened, `latest` moved to `1.2.0`, and `2.0.0`
+  survives only as a superseded, no-longer-tagged version.
+
+### Added
+
+- Nothing user-facing. The new script is release tooling.
+
+### Not claimed
+
+- The docs state that npm 1.2.0 carries Sigstore and SLSA v1 provenance because that was
+  read from `https://registry.npmjs.org/-/npm/v1/attestations/axiomize-quantum-skills-2.0@1.2.0`,
+  which returns two bundles. The tarball's SHA-512 was independently recomputed and matches
+  both the registry `integrity` field and the digest inside those attestations. Token-mode
+  publishes still carry no attestation, because there is no OIDC identity to sign one; the
+  1.2.0 upload was not token mode.
+
 ### Changed
 
 - **npm status corrected after #25.** #25 fixed `index.js` and pinned `package.json` to

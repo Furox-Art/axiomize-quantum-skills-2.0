@@ -8,6 +8,7 @@ Current package line: **1.2.0**
 ![Python](https://img.shields.io/python-3.10%2B-blue)
 ![CI](https://github.com/Furox-Art/axiomize-quantum-skills-2.0/actions/workflows/ci.yml/badge.svg)
 [![PyPI](https://img.shields.io/pypi/v/axiomize-quantum-skills-2.0)](https://pypi.org/project/axiomize-quantum-skills-2.0/)
+[![npm](https://img.shields.io/npm/v/axiomize-quantum-skills-2.0)](https://www.npmjs.com/package/axiomize-quantum-skills-2.0)
 [![Docs](https://img.shields.io/badge/docs-gh--pages-blue)](https://furox-art.github.io/axiomize-quantum-skills-2.0/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
@@ -15,11 +16,28 @@ Download numbers live on the package pages themselves, where they are always cur
 [PyPI](https://pypi.org/project/axiomize-quantum-skills-2.0/) ·
 [npm](https://www.npmjs.com/package/axiomize-quantum-skills-2.0)
 
-**PyPI is the supported install. npm is behind:** PyPI serves `1.2.0`; the npm registry
-serves `2.0.0`, published before the npm launcher was fixed, so `npx axiomize-quantum`
-still fails. `package.json` is now pinned to `1.2.0` in lockstep with Python and CI
-enforces it, so the next npm release carries the fix. See
-[Honest limits](#honest-limits).
+**PyPI and npm are both on `1.2.0`.** Verified against the live registries: PyPI
+`info.version` is `1.2.0` and the npm `latest` dist-tag is `1.2.0`.
+
+The npm package is a **thin Node launcher shim, not the engine**. It contains six files
+and about 44 kB and does one thing: spawn the Python CLI. So the Python package has to be
+installed and on `PATH` for `npx axiomize-quantum` to do anything useful:
+
+```bash
+pip install axiomize-quantum-skills-2.0
+npx axiomize-quantum --help
+```
+
+Supply chain: the `1.2.0` npm tarball was published over OIDC trusted publishing and
+carries two Sigstore attestations — an npm publish attestation and a
+[SLSA v1 provenance](https://slsa.dev/provenance/v1) statement. In that statement
+`runDetails.builder.id` is the identifier `https://github.com/actions/runner/github-hosted`
+(a SLSA builder ID, not a page to open), `internalParameters.github.event_name` is
+`workflow_dispatch`, and `resolvedDependencies` pins this repository and
+`.github/workflows/npm-publish.yml`. The tarball's SHA-512 was recomputed and matches both
+the registry `integrity` field and the digest inside those attestations.
+`npm install axiomize-quantum-skills-2.0 --provenance` fetches and verifies them. PyPI is
+published by trusted publishing too.
 
 **Documentation:** <https://furox-art.github.io/axiomize-quantum-skills-2.0/>
 
@@ -232,22 +250,15 @@ about a wrong model still scores 10.0/10. The human rubric layer described in
   actually installed. Install them with `pip install axiomize-quantum-skills-2.0[full]`.
 - Arbitrary code and theorem elaboration are **not** an OS sandbox. They require explicit
   trust. See [SECURITY.md](SECURITY.md) and [docs/security.md](docs/security.md).
-- **The npm launcher is fixed in the repository but the fix is not published yet.** The
-  source is correct as of 1.2.0: `index.js` passes `node --check`, resolves the real CLI
-  module `axiomize.cli`, propagates the child's exit code, and the `files` whitelist keeps
-  the tarball at 6 files / 41 kB instead of the previous 303 files / 2.1 MB. The npm
-  registry still serves `2.0.0`, published before the fix, whose `index.js` is the old
-  syntactically invalid one. So `npx axiomize-quantum` **still fails** until a version
-  carrying the fix is published. `package.json` is now pinned to `1.2.0` in lockstep with
-  Python and CI enforces that, so the next npm release carries the fix.
-  Until then, install from PyPI and use the `axiomize` console script directly.
-
-  Working from a checkout, without waiting for a publish:
-
-  ```bash
-  pip install axiomize-quantum-skills-2.0
-  node bin/axiomize-quantum.js --help      # verified working at 1.2.0
-  ```
+- **The npm package is a launcher shim, not a second implementation.** It is 6 files and
+  about 44 kB, and it does one thing: spawn the Python CLI. If the Python package is not
+  installed, `npx axiomize-quantum` exits `127` with a message telling you to install it.
+  There is no JavaScript engine here; use the `axiomize` console script or `python -m
+  axiomize.cli` directly if you do not want the extra hop.
+- npm also still holds `2.0.0`, published before the launcher fix, whose `index.js` is the
+  old syntactically invalid one. It is **not** the `latest` dist-tag any more, so a plain
+  `npm install axiomize-quantum-skills-2.0` resolves to `1.2.0`. If you have pinned or
+  installed `2.0.0`, upgrade.
 
 ## Documentation
 
