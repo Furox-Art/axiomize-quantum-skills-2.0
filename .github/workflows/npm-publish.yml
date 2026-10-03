@@ -2,17 +2,29 @@ name: Release (npm)
 
 # Triggered by the same version-bump commit as the PyPI release, never by hand.
 #
-# Publishing used to be stubbed out by PR #28, which replaced the upload with
-# `echo "npm publishing is disabled" && exit 0` while keeping every gate in
-# front of it. That made the workflow look healthy while guaranteeing the registry
-# stayed frozen on a broken 2.0.0 shim, and it left a trap: a green run proving
-# nothing. The decision has been reversed, so this is a real publish again and the
-# disabled-marker guard is gone.
+# Two credential modes, OIDC preferred
+# ------------------------------------
+# 1. OIDC Trusted Publishing (default). Requires `id-token: write` and a trusted
+#    publisher registered on npmjs.com for owner Furox-Art, package
+#    axiomize-quantum-skills-2.0, workflow npm-publish.yml, environment npm.
+#    Publishes with --provenance, so the attestation binds the tarball to this
+#    workflow run.
+# 2. Token (`use_token_fallback: true` on a manual dispatch). Uses the
+#    NPM_TOKEN repository secret as NODE_AUTH_TOKEN and publishes WITHOUT
+#    --provenance, because a Sigstore attestation is minted from the OIDC
+#    identity and a token has none. Strictly weaker: the token is a long-lived
+#    shared credential with no per-run identity, so a leak cannot be attributed
+#    to a single run.
 #
-# Authentication is OIDC Trusted Publishing (`id-token: write`, no token in the
-# repository). The legacy NPM_TOKEN path is documented below as a fallback but
-# is never used when OIDC is configured, because a long-lived secret is exactly
-# the credential trusted publishing exists to remove.
+# Token mode exists because the trusted publisher above is not yet registered, and
+# mode 1 fails closed without it. It is opt-in per run rather than a fallback the
+# workflow takes silently: a publish that quietly downgrades its own credential is
+# worse than one that fails and says why. Once the trusted publisher is set up,
+# dispatch with the default and delete mode 2.
+#
+# Node 24, not 22. setup-node's node 22 ships npm 10.9.9, which authenticates via
+# OIDC but cannot emit provenance; node 24 ships npm 11.x. Without the bump,
+# mode 1 would upload without the attestation it asks for.
 #
 # Which version, and what happens to the `latest` dist-tag
 # --------------------------------------------------------
@@ -36,11 +48,6 @@ name: Release (npm)
 # 2.0.0's index.js has a syntax error and spawns a Python module that does not
 # exist, so it cannot have a working consumer. `latest` should mean "the release
 # that works", and that is now 1.2.0.
-#
-# The one-time setup this depends on is a trusted publisher on npmjs.com bound to
-# owner Furox-Art, package axiomize-quantum-skills-2.0, workflow
-# npm-publish.yml, environment npm. Without it the publish fails closed with an
-# OIDC error rather than silently falling back to a token.
 
 on:
   push:
@@ -57,6 +64,14 @@ on:
         description: "Why this manual publish is needed (recorded in the run)"
         required: true
         type: string
+      use_token_fallback:
+        description: >-
+          Publish with the NPM_TOKEN secret instead of OIDC. Cannot emit
+          provenance, because an attestation is minted from the OIDC identity.
+          Only for when the npmjs.com trusted publisher is not registered.
+        required: false
+        default: false
+        type: boolean
 
 concurrency:
   # Not cancellable: a release must not be interrupted halfway. Two pushes racing
@@ -80,15 +95,39 @@ jobs:
       url: https://www.npmjs.com/package/axiomize-quantum-skills-2.0
     permissions:
       contents: read
-      # The entire credential. Required for both the OIDC exchange and
-      # `npm publish --provenance`.
+      # Required for the OIDC exchange and for `npm publish --provenance`. Token
+      # mode does not use it, but the permission is declared unconditionally
+      # because job permissions cannot be set per step and a workflow_dispatch
+      # can select either mode.
       id-token: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
-          node-version: "22"
+          # 24, not 22: npm 11 is required for provenance-on-publish. Node 22
+          # ships npm 10.9.9, which would upload without the attestation.
+          node-version: "24"
           registry-url: "https://registry.npmjs.org"
+
+      # Resolve which credential this run uses, before anything can publish.
+      # `inputs.*` is empty on a push event, so the comparison is written to treat
+      # an absent input as false rather than as a non-empty string, which is what
+      # `if: inputs.use_token_fallback` would do.
+      - name: Resolve the publish credential mode
+        id: mode
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ inputs.use_token_fallback }}" = "true" ]; then
+            echo "mode=token" >> "$GITHUB_OUTPUT"
+            echo "::warning::Running in TOKEN mode: publishing with the NPM_TOKEN secret and no provenance."
+            echo "::warning::Register the npmjs.com trusted publisher (owner Furox-Art, package"
+            echo "::warning::axiomize-quantum-skills-2.0, workflow npm-publish.yml, environment npm)"
+            echo "::warning::and then dispatch again with use_token_fallback=false."
+          else
+            echo "mode=oidc" >> "$GITHUB_OUTPUT"
+            echo "::notice::Running in OIDC mode: publishing with trusted publishing and provenance."
+          fi
 
       - name: Report the reason for a manual run
         if: ${{ github.event_name == 'workflow_dispatch' }}
@@ -154,8 +193,7 @@ jobs:
           exit 0
 
       # Record the tag state before the upload, so the run summary can state
-      # whether the publish moved `latest` or left it alone. See the dist-tag
-      # note in package.json and the workflow header.
+      # whether the publish moved `latest` or left it alone.
       - name: Record the current dist-tag state
         id: tags
         if: steps.gate.outputs.skip != 'true'
@@ -185,6 +223,7 @@ jobs:
           {
             echo "### npm pre-publish state"
             echo ""
+            echo "- credential mode: \`${{ steps.mode.outputs.mode }}\`"
             echo "- version to publish: \`${version}\`"
             echo "- \`latest\` before: \`${current}\`"
             echo "- highest published version: \`${highest}\`"
@@ -220,25 +259,78 @@ jobs:
           fi
           echo "tarball contents match the allowlist exactly (6 files)"
 
+      # Provenance needs npm >= 11.5.1. Compared numerically rather than with a
+      # regex: `^11\.(5[1-9]|[6-9][0-9])\.` reads 11.5.1 as failing (the group
+      # demands "51".."59" with no separator, so 11.5.1 never matches) and
+      # 11.19.0 as failing too, because `[6-9][0-9]` cannot span a two-digit
+      # minor. It rejects the version node 24 actually ships.
+      - name: Require npm >= 11.5.1 for provenance
+        if: ${{ steps.gate.outputs.skip != 'true' && steps.mode.outputs.mode == 'oidc' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm_version="$(npm --version)"
+          echo "npm version: ${npm_version}"
+          node -e "
+            const parse = (v) => String(v).replace(/^v/, '').split('-')[0].split('.').map(Number);
+            const compare = (a, b) => {
+              const pa = parse(a), pb = parse(b);
+              for (let i = 0; i < 3; i += 1) {
+                const x = pa[i] || 0, y = pb[i] || 0;
+                if (x !== y) return x < y ? -1 : 1;
+              }
+              return 0;
+            };
+            const have = process.argv[1], need = process.argv[2];
+            if (compare(have, need) < 0) {
+              console.error('::error::npm ' + have + ' cannot publish with --provenance; ' + need + ' or newer is required.');
+              process.exit(1);
+            }
+            console.log('npm ' + have + ' satisfies the >= ' + need + ' provenance requirement');
+          " "${npm_version}" "11.5.1"
+
+      # Fail closed when the selected mode has no usable credential, checked
+      # before the upload rather than inferred from a failed publish. The OIDC
+      # case cannot be detected this way -- there is no secret to inspect, and the
+      # only honest signal is npm's own error -- so it is called out explicitly.
+      - name: Fail closed when the token credential is missing
+        if: ${{ steps.gate.outputs.skip != 'true' && steps.mode.outputs.mode == 'token' }}
+        shell: bash
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${NPM_TOKEN:-}" ]; then
+            echo "::error::use_token_fallback=true but the NPM_TOKEN secret is empty or unset."
+            echo "::error::Add an npm automation token as the NPM_TOKEN repository secret, or"
+            echo "::error::register the npmjs.com trusted publisher and dispatch with the default."
+            exit 1
+          fi
+          echo "NPM_TOKEN is present (${#NPM_TOKEN} characters, value not shown)"
+
       # No `continue-on-error`: a failed publish must fail the run. A publish that
       # reports success while uploading nothing is the exact defect this workflow
       # had when it was stubbed out.
       #
-      # `--tag latest` is explicit because the npm CLI refuses to imply it: the
-      # registry already holds 2.0.0, which sorts above this version, so an
-      # implicit tag aborts with
-      #   "Cannot implicitly apply the \"latest\" tag because previously published
-      #    version 2.0.0 is higher than the new version 1.2.0."
-      # Verified against the live registry with `npm publish --dry-run`. The same
-      # setting is declared in package.json `publishConfig.tag`, so the intent is
-      # recorded in the package metadata as well as in this file.
+      # `--tag latest` is always explicit, in both modes: the registry already
+      # holds 2.0.0, which sorts above this version, so an implicit tag aborts
+      # with "Cannot implicitly apply the \"latest\" tag because previously
+      # published version 2.0.0 is higher than the new version 1.2.0."
       - name: Publish to npm with OIDC Trusted Publishing and provenance
-        id: trusted_publish
-        if: steps.gate.outputs.skip != 'true'
-        run: |
-          # Trusted publishing needs npm >= 11.5.1 for provenance-on-publish.
-          npm --version
-          npm publish --access public --provenance --tag latest
+        if: ${{ steps.gate.outputs.skip != 'true' && steps.mode.outputs.mode == 'oidc' }}
+        run: npm publish --access public --provenance --tag latest
+
+      - name: Publish to npm with the NPM_TOKEN secret
+        if: ${{ steps.gate.outputs.skip != 'true' && steps.mode.outputs.mode == 'token' }}
+        shell: bash
+        env:
+          # setup-node writes .npmrc referencing NODE_AUTH_TOKEN, so this is the
+          # variable npm actually reads for the token.
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        # No --provenance: the attestation is signed from the OIDC identity, and
+        # there is no OIDC identity in this mode. Passing it would fail the upload
+        # rather than silently produce an unattributed tarball.
+        run: npm publish --access public --tag latest
 
       - name: Verify the publication is publicly visible
         if: steps.gate.outputs.skip != 'true'
@@ -255,13 +347,19 @@ jobs:
                 echo ""
                 echo "### npm release complete"
                 echo ""
+                echo "- credential mode: \`${{ steps.mode.outputs.mode }}\`"
+                if [ "${{ steps.mode.outputs.mode }}" = "token" ]; then
+                  echo "- provenance: **not generated** (token mode has no OIDC identity)"
+                else
+                  echo "- provenance: attached"
+                fi
                 echo "- published: \`${package}@${version}\`"
                 echo "- \`latest\` now: \`${now}\`"
                 if [ "$now" != "$version" ]; then
                   echo ""
                   echo "\`latest\` still points at \`${now}\`, which is a different"
-                  echo "version. That is expected here and not an error: see the"
-                  echo "dist-tag note in package.json."
+                  echo "version. That is expected here and not an error; see the workflow"
+                  echo "header."
                 fi
               } >> "$GITHUB_STEP_SUMMARY"
               exit 0
@@ -283,25 +381,12 @@ jobs:
             echo ""
             echo '```bash'
             echo "python .github/scripts/version_lockstep.py --bump 1.3.0"
-            echo "```"
+            echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
-# Token fallback, documented but not wired up
-# -------------------------------------------
-# If trusted publishing cannot be configured for this repository, the supported
-# alternative is an npm automation token stored as the NPM_TOKEN repository
-# secret, consumed by `NODE_AUTH_TOKEN`:
-#
-#   env:
-#     NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-#
-# and the publish step above would need `--provenance` dropped, because
-# provenance is generated from the OIDC identity rather than from a token. That
-# is strictly weaker: the token is a long-lived shared credential with no
-# per-run identity, so a leak is not attributable to a single workflow run.
-#
-# This path is deliberately not enabled. The NPM_TOKEN secret does exist in this
-# repository (it was the mechanism before trusted publishing), so removing the
-# reference here is not merely theoretical -- it is the only thing preventing a
-# silent downgrade to the weaker credential. Prefer fixing the trusted publisher
-# configuration instead; see the setup steps in the pull request body.
+      # The npmjs.com trusted publisher this workflow prefers, in one place:
+      #   owner Furox-Art
+      #   package axiomize-quantum-skills-2.0
+      #   workflow filename npm-publish.yml
+      #   environment npm
+      # Until that exists, OIDC mode fails closed at the publish step.
