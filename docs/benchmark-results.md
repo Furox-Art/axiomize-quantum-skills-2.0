@@ -21,13 +21,14 @@ There are two separate things here, and they measure different things:
 | Field | Value |
 |---|---|
 | Package | `axiomize-quantum-skills-2.0` **1.2.0** |
-| Repository commit | `338bc9e2ce77a131bce18d4e0e1a1d0c7822be51` |
+| Repository commit | `9c2990c2ce77a131bce18d4e0e1a1d0c7822be51` |
 | Grading script | `skills/axiomize/tools/benchmark_runner.py` |
 | Corpus | `benchmarks/ideas.json` — 25 cases |
 | Reports | `benchmarks/reports/<id>.md` — 25 matching reports, 0 missing |
 | Python | CPython 3.12.10, Windows AMD64 |
 | Numeric stack | numpy 2.5.3, scipy 1.18.1 |
-| Date run | during the OSS visibility pass on top of `338bc9e` |
+| Date run | re-run at `9c2990c` for the README truthfulness pass; first measured during the OSS visibility pass and re-measured on every documentation change since |
+| Check counts | vary per case, 8 to 11 — see the results table |
 
 ### Reproduce a single case
 
@@ -62,37 +63,39 @@ done
 
 ### Result
 
-All 25 cases graded `PASS` at **10.0/10** on the automated layer, every one exiting 0.
+All 25 cases graded `PASS` at **10.0/10** on the automated layer, every one exiting 0. The
+denominator is per case — the runner builds a variable number of checks — so `10.0/10` does
+not always mean 10 of 10. The measured counts are in the table.
 
-| Case | `expected_archetype` | Lenses req. | Lenses found | Numeric oracle | Automated score |
-|---|---|---|---|---|---|
-| epidemic-threshold | SIR | 2 | 4 | no | 10.0/10 |
-| barista-staffing | M/M/c queueing | 2 | 4 | no | 10.0/10 |
-| app-adoption-ceiling | Bass diffusion / logistic | 2 | 4 | no | 10.0/10 |
-| duopoly-price-cut | Bertrand duopoly | 1 | 5 | no | 10.0/10 |
-| reserve-ruin | compound Poisson / ruin theory | 2 | 4 | no | 10.0/10 |
-| greenhouse-setpoint | feedback control / Newton cooling | 2 | 4 | no | 10.0/10 |
-| school-rumor-reach | rumor dynamics on networks | 2 | 4 | no | 10.0/10 |
-| ad-lift-causal | causal identification | 2 | 4 | no | 10.0/10 |
-| physics-pendulum-drift | damped harmonic oscillator | 2 | 2 | yes | 10.0/10 |
-| chemistry-batch-yield | batch reactor kinetics | 2 | 2 | yes | 10.0/10 |
-| biology-predator-prey | Lotka-Volterra predator-prey | 2 | 2 | no | 10.0/10 |
-| physics-heat-conduction | steady-state heat conduction | 2 | 2 | yes | 10.0/10 |
-| operations-inventory | EOQ inventory optimization | 2 | 2 | no | 10.0/10 |
-| chemistry-equilibrium | chemical equilibrium | 2 | 2 | yes | 10.0/10 |
-| causal-confounding | confounding bias | 2 | 2 | no | 10.0/10 |
-| physics-oscillator-ringdown | damped harmonic oscillator | 2 | 2 | yes | 10.0/10 |
-| biology-drug-dosing | one-compartment pharmacokinetics | 2 | 2 | no | 10.0/10 |
-| chemistry-catalyst-deactivation | catalyst deactivation kinetics | 2 | 2 | no | 10.0/10 |
-| operations-airline-overbooking | binomial overbooking / newsvendor | 2 | 2 | yes | 10.0/10 |
-| causal-training-productivity | program evaluation under selection bias | 2 | 2 | no | 10.0/10 |
-| physics-rc-discharge | exponential RC discharge | 1 | 2 | yes | 10.0/10 |
-| biology-doubling-culture | exponential bacterial growth | 1 | 3 | yes | 10.0/10 |
-| chemistry-first-order-half-life | first-order chemical half-life | 1 | 3 | yes | 10.0/10 |
-| operations-mm1-wait | M/M/1 queue | 1 | 3 | yes | 10.0/10 |
-| causal-randomized-ate | randomized average treatment effect | 1 | 3 | yes | 10.0/10 |
+| Case | `expected_archetype` | Checks | Lenses req. | Lenses found | Numeric oracle | Score |
+|---|---|---|---|---|---|---|
+| epidemic-threshold | SIR | 11 | 2 | 4 | no | 10.0/10 |
+| barista-staffing | M/M/c queueing | 10 | 2 | 4 | no | 10.0/10 |
+| app-adoption-ceiling | Bass diffusion / logistic | 8 | 2 | 4 | no | 10.0/10 |
+| duopoly-price-cut | Bertrand duopoly | 9 | 1 | 5 | no | 10.0/10 |
+| reserve-ruin | compound Poisson / ruin theory | 9 | 2 | 4 | no | 10.0/10 |
+| greenhouse-setpoint | feedback control / Newton cooling | 8 | 2 | 4 | no | 10.0/10 |
+| school-rumor-reach | rumor dynamics on networks | 8 | 2 | 4 | no | 10.0/10 |
+| ad-lift-causal | causal identification | 9 | 2 | 4 | no | 10.0/10 |
+| physics-pendulum-drift | damped harmonic oscillator | 10 | 2 | 2 | yes | 10.0/10 |
+| chemistry-batch-yield | batch reactor kinetics | 10 | 2 | 2 | yes | 10.0/10 |
+| biology-predator-prey | Lotka-Volterra predator-prey | 10 | 2 | 2 | no | 10.0/10 |
+| physics-heat-conduction | steady-state heat conduction | 9 | 2 | 2 | yes | 10.0/10 |
+| operations-inventory | EOQ inventory optimization | 10 | 2 | 2 | no | 10.0/10 |
+| chemistry-equilibrium | chemical equilibrium | 11 | 2 | 2 | yes | 10.0/10 |
+| causal-confounding | confounding bias | 9 | 2 | 2 | no | 10.0/10 |
+| physics-oscillator-ringdown | damped harmonic oscillator | 11 | 2 | 2 | yes | 10.0/10 |
+| biology-drug-dosing | one-compartment pharmacokinetics | 10 | 2 | 2 | no | 10.0/10 |
+| chemistry-catalyst-deactivation | catalyst deactivation kinetics | 10 | 2 | 2 | no | 10.0/10 |
+| operations-airline-overbooking | binomial overbooking / newsvendor | 11 | 2 | 2 | yes | 10.0/10 |
+| causal-training-productivity | program evaluation under selection bias | 10 | 2 | 2 | no | 10.0/10 |
+| physics-rc-discharge | exponential RC discharge | 9 | 1 | 2 | yes | 10.0/10 |
+| biology-doubling-culture | exponential bacterial growth | 10 | 1 | 3 | yes | 10.0/10 |
+| chemistry-first-order-half-life | first-order chemical half-life | 9 | 1 | 3 | yes | 10.0/10 |
+| operations-mm1-wait | M/M/1 queue | 10 | 1 | 3 | yes | 10.0/10 |
+| causal-randomized-ate | randomized average treatment effect | 9 | 1 | 3 | yes | 10.0/10 |
 
-12 of the 25 cases carry a `numeric_oracle`, so their headline number is checked against a
+11 of the 25 cases carry a `numeric_oracle`, so their headline number is checked against a
 closed-form value within a stated tolerance rather than only checked for presence.
 
 ### What 10.0/10 does and does not mean
@@ -197,7 +200,7 @@ axiomize benchmark
 ```
 
 12 of 12 cases pass on CPython 3.12.10 with numpy 2.5.3 / scipy 1.18.1 at commit
-`338bc9e`. Cases include a deterministic model, a nonlinear ODE, an optimization problem and
+`9c2990c`. Cases include a deterministic model, a nonlinear ODE, an optimization problem and
 a regression fit.
 
 ## 4. Numerical cross-checks in the test suite
@@ -218,7 +221,7 @@ Run them with:
 pytest tests/test_numerical_reference.py tests/test_bayesian_likelihoods.py -q
 ```
 
-Verified `40 passed` at commit `338bc9e` on CPython 3.12.10.
+Verified `40 passed` at commit `9c2990c` on CPython 3.12.10.
 
 ---
 

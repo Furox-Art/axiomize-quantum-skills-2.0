@@ -24,9 +24,25 @@ The reference SIR model, animated. beta = 0.3, gamma = 0.1, so R0 = 3.0.
 
 ![Animated SIR epidemic curve, R0=3.0](sir-demo.gif)
 
-The same run at full resolution, peak annotated:
+The static plot below is the same parameter run at full resolution, peak annotated:
 
 ![SIR beta=0.3 gamma=0.1 R0=3.00, peak 300,465 at day 61](sir-example.png)
+
+The plot is written by the `--plot` flag of the `axiomize-validate` console script, not by
+`axiomize validate` (which emits JSON and writes no file):
+
+```bash
+axiomize-validate --model sir --beta 0.3 --gamma 0.1 --N 1000000 --plot sir.png
+```
+
+```text
+Peak infected          = 300,465 at day 61.4
+plot saved -> sir.png
+```
+
+Re-running with those parameters reproduces the same curve and the same peak annotation.
+The committed PNG is a snapshot, so its bytes are not expected to match a fresh run exactly:
+Matplotlib's PNG output varies by version.
 
 A sample of the LaTeX report the engine converts a finished analysis into:
 [report-sample.pdf](report-sample.pdf) (source: [report-sample.tex](report-sample.tex)).
@@ -45,7 +61,7 @@ axiomize benchmark    # install-safe self-test
 axiomize validate --N 1000000
 ```
 
-Verified at version 1.2.0, commit `338bc9e`, CPython 3.12.10:
+Verified at version 1.2.0, commit `9c2990c`, CPython 3.12.10:
 
 ```json
 {"status": "PASS", "passed": 12, "total": 12, ...}

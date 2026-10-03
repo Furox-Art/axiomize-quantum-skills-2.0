@@ -1,7 +1,7 @@
 # Your First Axiomize Session
 
 A beginner walkthrough. Every command in this page was executed against
-`axiomize-quantum-skills-2.0` **1.2.0** at commit `338bc9e` on CPython 3.12.10 (Windows),
+`axiomize-quantum-skills-2.0` **1.2.0** at commit `9c2990c` on CPython 3.12.10 (Windows),
 with numpy 2.5.3 and scipy 1.18.1. If a command here stops working, that is a documentation
 bug worth reporting.
 
