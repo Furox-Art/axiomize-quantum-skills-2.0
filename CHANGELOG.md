@@ -281,6 +281,87 @@ always be the current version.
 
 ## Releases (axiomize-quantum-skills-2.0)
 
+## [1.2.1] - 2026-10-03
+
+Documentation corrections and test coverage. No public API change: the console entry
+points, the REST and MCP surface, the Model IR schema and the agent skills are
+unchanged from 1.2.0, and every 1.2.0 call site keeps working.
+
+The point of this release is that PyPI's project page renders `README.md` as the
+`long_description`, and that text is frozen into the artifact at build time. The
+1.2.0 upload therefore still shows the pre-correction README, including the
+claims corrected below. Only a new upload changes it, which is why the
+documentation fixes need a version bump even though no code changed.
+
+### Fixed (documentation)
+
+- README no longer claims a command produces a plot it does not. The plots are
+  written by `axiomize-validate --plot`, and the README and `docs/index.md` now
+  show that invocation.
+- README no longer implies the `[full]` extra installs FEniCS/DOLFINx. `[full]` is
+  exactly `pymc>=5.0` and `jax>=0.4`; FEniCS/DOLFINx has no pip extra.
+- `axiomize model --action plan` is documented in a form that runs, and the
+  idea-first path uses `axiomize intake`.
+- The attestation field reference is corrected: `resolvedDependencies` pins the
+  repository at one `gitCommit`; the workflow path lives under
+  `buildDefinition.externalParameters.workflow.path`.
+- The PyPI downloads badge is gone. `img.shields.io/pypi/dm/...` answers HTTP 200
+  while rendering `downloads: rate limited by upstream service`, so the badge
+  looked live and showed nothing. The package pages are linked instead.
+- The Python version badge no longer renders the literal `3.10%2B`.
+- The README no longer presents `npx axiomize-quantum` as a working quickstart.
+  The published npm `index.js` failed `node --check` with a syntax error; the
+  breakage is stated under honest limits instead of being advertised as a way in.
+- `docs/benchmark-results.md` drops per-wave scores attributed to blind-test
+  sessions that had no retained transcripts and could not be reproduced, and the
+  "v1.3.0 content" claim is removed because no such release exists in this line.
+- The sibling-repository page `docs/publishing-checklist.md` is rewritten for this
+  package, including the "README GIF renders" item that could not pass here.
+
+### Changed (documentation)
+
+- README rewritten to document the surface that actually ships: 9 CLI entry
+  points, 14 `axiomize` subcommands, 34 MCP tools, the REST routes and the two
+  installable agent skills. It previously documented none of them.
+- `docs/example-gallery.md` labels its examples as illustrative worked reports with
+  stated parameter provenance; `docs/worked-examples.md` is labelled as sketches
+  with no recorded run and points at the graded corpus.
+- This changelog separates the upstream lineage from this distribution's releases,
+  so a reader can tell which version numbers refer to a real release here.
+
+### Added (tests)
+
+- `ruff` and `mypy` gates in CI, which were declared in `pyproject.toml` and run
+  nowhere. Type findings are pinned to measured counts in
+  `.github/mypy-baseline.txt`, so new errors fail the build and existing ones
+  cannot be quietly absorbed.
+- A non-decreasing branch-coverage ratchet. The scope was widened to include
+  `skills/axiomize/tools`, the 1315 statements the wheel ships behind seven of the
+  nine console entry points, which `--cov=axiomize` had been excluding.
+- A build job that asserts every declared console entry point resolves inside the
+  built wheel and that the sdist can rebuild it.
+- A real `npm test` contract suite (the previous script always exited non-zero and
+  was never invoked), plus an `npm-contract` CI job.
+- Distribution-name and README-badge regression guards.
+
+### Fixed (CI and packaging)
+
+- The npm launcher had a syntax error and spawned a Python module that does not
+  exist, so `npx axiomize-quantum` never worked. Both are fixed and the published
+  tarball is constrained to an explicit allowlist.
+- `pages.yml` linked the staged skill pages at a different repository; a link
+  leaving the site is not a broken link, so `mkdocs build --strict` never noticed.
+- `docs/adaptive-workflow.md` was missing from `.gitignore` despite being a
+  generated page, leaving a hand-edited duplicate one `git add -A` away.
+- Publishing is driven by the version-bump trigger with a registry existence
+  check, so a re-run cannot double-publish. `main` is protected by a ruleset
+  requiring a pull request and the 19 quality checks.
+
+### Not changed, deliberately
+
+- No new runtime dependency, no changed default, no schema or protocol change.
+  This is a patch release that carries documentation and CI corrections only.
+
 ## [1.2.0] - 2026-09-30
 
 ### Added

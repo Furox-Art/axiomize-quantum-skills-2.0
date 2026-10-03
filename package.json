@@ -1,6 +1,6 @@
 {
   "name": "axiomize-quantum-skills-2.0",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Axiomize 2.0 - scientific modeling engine plus quantum-inspired multi-branch reasoning",
   "main": "index.js",
   "bin": {
