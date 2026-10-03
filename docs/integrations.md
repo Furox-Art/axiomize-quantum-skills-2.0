@@ -4,7 +4,7 @@ Axiomize is a scientific engine; AI providers are clients of it. All three inter
 the same core services, so validation behaviour never depends on which agent calls.
 
 Everything on this page was verified against `axiomize-quantum-skills-2.0` **1.2.0** at
-commit `338bc9e`, CPython 3.12.10 (Windows), with the default install (no `pymc`, no
+commit `9c2990c`, CPython 3.12.10 (Windows), with the default install (no `pymc`, no
 `jax`).
 
 ## Capability discovery

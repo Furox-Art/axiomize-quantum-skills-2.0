@@ -45,8 +45,68 @@ axiomize tools        # which backends are really installed
 axiomize benchmark    # -> {"status": "PASS", "passed": 12, "total": 12}
 ```
 
-Verified at 1.2.0, commit `338bc9e`, CPython 3.12.10. Quote that commit if you quote the
+Verified at 1.2.0, commit `9c2990c`, CPython 3.12.10. Quote that commit if you quote the
 `12/12` result.
+
+## Supply chain
+
+Both registries are published by **OIDC trusted publishing**, not by a long-lived token.
+
+### npm
+
+The npm tarball is published with `--provenance` under an explicit `--tag latest`. Two
+Sigstore attestations are attached, and both are readable without any tooling:
+
+```bash
+curl -s https://registry.npmjs.org/-/npm/v1/attestations/axiomize-quantum-skills-2.0@1.2.0
+```
+
+That returns two bundles:
+
+| `predicateType` | What it is |
+|---|---|
+| `https://github.com/npm/attestation/tree/main/specs/publish/v0.1` | npm's own publish attestation |
+| `https://slsa.dev/provenance/v1` | full SLSA v1 build provenance |
+
+Fields inside the SLSA statement, as read from the live response:
+
+| Field | Value for 1.2.0 |
+|---|---|
+| `buildDefinition.buildType` | `https://slsa-framework.github.io/github-actions-buildtypes/workflow/v1` |
+| `buildDefinition.externalParameters.workflow.path` | `.github/workflows/npm-publish.yml` |
+| `buildDefinition.externalParameters.workflow.repository` | `https://github.com/Furox-Art/axiomize-quantum-skills-2.0` |
+| `buildDefinition.internalParameters.github.event_name` | `workflow_dispatch` |
+| `buildDefinition.resolvedDependencies[0]` | the repository at one `gitCommit` — **this pins the repo, not the workflow file** |
+| `runDetails.builder.id` | `https://github.com/actions/runner/github-hosted` (a builder identifier, not a page) |
+| `runDetails.metadata.invocationId` | the run that performed the upload |
+
+Only a trusted-publishing upload on a GitHub-hosted runner produces a SLSA statement, so
+its presence is the evidence that OIDC was used.
+
+Verify the digest independently:
+
+```bash
+npm view axiomize-quantum-skills-2.0@1.2.0 dist.integrity
+curl -sLO "$(npm view axiomize-quantum-skills-2.0@1.2.0 dist.tarball)"
+sha512sum axiomize-quantum-skills-2.0-1.2.0.tgz
+```
+
+For 1.2.0 the registry `integrity` value, the recomputed tarball SHA-512, and the `sha512`
+digest inside both attestations are the same value.
+
+### Token-mode publishes carry no attestation
+
+The workflow's `use_token_fallback` input publishes with `NPM_TOKEN` and **without**
+`--provenance`, because a Sigstore attestation is signed from the OIDC identity and a token
+has none. If you are reading this page to decide whether a given tarball is attested, check
+the endpoint above rather than assuming: `2.0.0` returns HTTP 404 (no attestation), `1.2.0`
+returns two.
+
+### PyPI
+
+Published by trusted publishing against the `pypi` environment. There is no public
+per-artifact attestation API on PyPI comparable to npm's; the release is evidenced by the
+GitHub Actions run and the PyPI upload timestamp.
 
 ## Where to submit
 

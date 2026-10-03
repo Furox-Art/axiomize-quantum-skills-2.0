@@ -34,6 +34,71 @@ always be the current version.
 
 ## Unreleased
 
+### Fixed (documentation)
+
+- **README no longer claims a command produces a plot it does not.** It said "that curve is
+  produced by the command in step 3 below", but `axiomize validate --N 1000000` emits JSON
+  and writes no file, and no in-repo script generates `docs/sir-demo.gif` or
+  `docs/sir-example.png`. The plots are written by the `--plot` flag of the
+  `axiomize-validate` console script, which the README and `docs/index.md` now show:
+  `axiomize-validate --model sir --beta 0.3 --gamma 0.1 --N 1000000 --plot sir.png`.
+  Verified: it writes a 47 kB PNG reporting `Peak infected = 300,465 at day 61.4`, the same
+  curve and annotation as the committed snapshot. The snapshot is **not** byte-identical to a
+  fresh run (47 061 B vs 46 701 B) because Matplotlib's PNG output varies by version, so no
+  byte-equality is claimed.
+- **README no longer implies the `[full]` extra installs FEniCS/DOLFINx.** `[full]` is
+  exactly `["pymc>=5.0", "jax>=0.4"]`. FEniCS/DOLFINx has no pip extra and must be installed
+  separately; the README now says so, matching `docs/index.md`.
+- **`axiomize model --action plan` is now shown in a form that runs.** The README implied it
+  could be called bare; it requires `--input-json` and exits 2 without it, and there is no
+  `--idea` flag. The README now uses `axiomize intake` for the idea-first path and notes the
+  `--input-json` requirement explicitly.
+- **Attestation field reference corrected.** The README said `resolvedDependencies` pins the
+  repository *and* the workflow file. It pins only the repository at one `gitCommit`; the
+  workflow path is under `buildDefinition.externalParameters.workflow.path`. Both fields are
+  now named correctly in the README and tabulated in `docs/publishing-checklist.md`.
+- `docs/benchmark-results.md` said 12 of 25 cases carry a `numeric_oracle`. Measured from
+  `benchmarks/ideas.json`: **11**.
+
+### Changed (documentation)
+
+- **Provenance refreshed from `338bc9e` to `9c2990c`** across `README.md`,
+  `docs/tutorial.md`, `docs/benchmark-results.md`, `docs/index.md`, `docs/integrations.md`,
+  `docs/example-gallery.md` and `docs/publishing-checklist.md`. The previous reference was
+  seven commits behind `main` and had diverged. Every command in the README was re-run at
+  `9c2990c` and the 25-case corpus re-graded: still 25/25 PASS at 10.0/10, all exiting 0.
+- `docs/benchmark-results.md` now reports each case's **measured** check count (8 to 11)
+  instead of implying `10.0/10` always means 10 of 10. The runner builds a variable number of
+  checks per case, so the denominators differ.
+- README coverage: the Interfaces table now lists the **7 previously undocumented console
+  entry points** (`axiomize-validate`, `axiomize-fit`, `axiomize-csv-check`,
+  `axiomize-benchmark`, `axiomize-to-latex`, `axiomize-index-reports`, `axiomize-sweep`), so it
+  no longer implies a two-command CLI. "What you get" now covers `packs/` (13 domain packs),
+  `skills/axiomize/templates/` (5 report templates), the Lean 4 backend
+  (`formal/lean_adapter.py`), the OpenAI-compatible provider layer (`providers/`), the
+  6-case reasoning corpus with its 4 JSON schemas, `axiomize-reason select|width`, and
+  versioned portable runs with Model IR SHA-256 integrity metadata.
+- README Documentation table now covers all 20 site pages grouped as `mkdocs.yml` does, so no
+  page is undiscoverable.
+- README shortened to fit the coverage above without padding: duplicated command blocks were
+  replaced by links to `docs/tutorial.md`, "See it work" keeps one image instead of three, and
+  the supply-chain detail moved to a new `docs/publishing-checklist.md#supply-chain` section
+  with a verification recipe.
+
+### Not changed, deliberately
+
+- The **Honest limits** wording and the **benchmark labelling** are untouched. The
+  contract-compliance framing, the synthetic-placeholder disclosure and the note that the
+  human rubric layer is unscored were audited and are accurate. The single exception is the
+  `[full]` bullet, where a factually wrong dependency claim had to be corrected.
+
+### Added (documentation)
+
+- `docs/publishing-checklist.md` gains a **Supply chain** section: the two attestation
+  predicate types, a field-by-field table of the SLSA v1 statement as read from the live
+  registry, digest verification commands, and an explicit statement that token-mode
+  publishes carry no attestation while trusted-publishing ones do.## Unreleased
+
 ### Fixed
 
 - **`Release (npm)` no longer reports a successful publish as a failure.** `npm publish`

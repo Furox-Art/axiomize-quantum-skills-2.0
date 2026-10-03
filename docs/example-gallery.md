@@ -108,7 +108,7 @@ to a Model IR and run `axiomize model --action validate`.
 ---
 
 Full texts: [`examples/`](https://github.com/Furox-Art/axiomize-quantum-skills-2.0/blob/main/examples) — all 18 files listed above are present in this
-repository at commit `338bc9e2ce77a131bce18d4e0e1a1d0c7822be51`.
+repository at commit `9c2990c2ce77a131bce18d4e0e1a1d0c7822be51`.
 
 Lenses available to compose: see `skills/axiomize/perspectives/` — agent-based,
 causal-inference, control, decision-theory, demographic, deterministic, game-theory,
