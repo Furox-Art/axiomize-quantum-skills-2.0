@@ -91,10 +91,19 @@ Structured JSON in, structured JSON out (API v1). Tools that can be expensive
 
 ### npm launcher
 
-The npm package is a thin launcher for the same CLI. From a checkout it works:
+The npm package is a **thin Node launcher shim for the same CLI** — six files, about
+44 kB, and no engine of its own. It requires the Python package; without it the launcher
+exits `127` and tells you so.
 
 ```bash
 pip install axiomize-quantum-skills-2.0
+npx axiomize-quantum --help      # -> the axiomize usage, exit 0
+npx axiomize-quantum benchmark   # -> {"status": "PASS", "passed": 12, "total": 12}
+```
+
+From a checkout the same launcher runs as:
+
+```bash
 node bin/axiomize-quantum.js --help     # verified: prints the axiomize usage, exit 0
 node bin/axiomize-quantum.js benchmark  # verified: 12/12 PASS
 ```
@@ -103,10 +112,19 @@ It resolves the console script first and falls back to `python -m axiomize.cli`,
 propagates the child's exit code (a bad subcommand exits 2, `--help` exits 0). Set
 `AXIOMIZE_PYTHON` to pin the interpreter or `AXIOMIZE_CLI` to pin the entry point.
 
-The npm **registry** copy is still one version behind: npm serves `2.0.0`, published
-before this fix, so `npx axiomize-quantum` fails on a syntax error in the old `index.js`.
-`package.json` is pinned to `1.2.0` in lockstep with Python and CI enforces that, so the
-next npm release carries the fix. Use PyPI until then.
+Registry state, verified against `registry.npmjs.org`: `latest` is `1.2.0`, matching PyPI.
+The tarball holds six files and about 44 kB, and it was published over OIDC trusted
+publishing with two Sigstore attestations — an npm publish attestation plus a
+[SLSA v1 provenance](https://slsa.dev/provenance/v1) statement whose
+`runDetails.builder.id` is `https://github.com/actions/runner/github-hosted` (a SLSA
+builder ID, not a page) and whose `resolvedDependencies` pins this repository and
+`.github/workflows/npm-publish.yml`. Its SHA-512 matches the registry `integrity` field
+and the digest inside both attestations.
+
+npm also still holds the superseded `2.0.0`, whose `index.js` is the old syntactically
+invalid one. It is no longer the `latest` dist-tag, so an unpinned
+`npm install axiomize-quantum-skills-2.0` gets `1.2.0`. `npm view axiomize-quantum-skills-2.0 dist-tags`
+tells you which one you have.
 
 ## Via REST (v1)
 

@@ -79,7 +79,7 @@ These would be untrue, so leave them out:
 | "N independent agents produced these reports" | The stored reports are maintainer-authored |
 | "supported by Claude Code / Cursor / OpenCode" | Only MCP protocol conformance was tested here |
 | a stars, forks, or downloads figure | Do not hardcode; link the package page instead |
-| "npm package ready to use" | The npm launcher is fixed in source but npm still serves the pre-fix `2.0.0`. Say "PyPI 1.2.0" instead |
+| "npm package ready to use" | npm 1.2.0 is published and attested, but it is only a launcher shim for the Python CLI. Say "PyPI 1.2.0 is the install; npm 1.2.0 is a Node launcher for it" |
 
 ## Keeping this honest
 

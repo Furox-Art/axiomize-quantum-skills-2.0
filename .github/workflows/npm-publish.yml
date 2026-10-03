@@ -16,11 +16,14 @@ name: Release (npm)
 #    shared credential with no per-run identity, so a leak cannot be attributed
 #    to a single run.
 #
-# Token mode exists because the trusted publisher above is not yet registered, and
-# mode 1 fails closed without it. It is opt-in per run rather than a fallback the
-# workflow takes silently: a publish that quietly downgrades its own credential is
-# worse than one that fails and says why. Once the trusted publisher is set up,
-# dispatch with the default and delete mode 2.
+# Token mode exists as an explicit escape hatch, not as an automatic fallback.
+# The OIDC trusted publisher IS registered: the 1.2.0 tarball on the registry
+# carries a Sigstore attestation and a SLSA v1 provenance statement whose
+# `resolvedDependencies` names this workflow and whose `runDetails.builder` is
+# `https://github.com/actions/runner/github-hosted`, which only a trusted-publishing
+# upload can produce. Mode 1 therefore works. Mode 2 is opt-in per run, because a
+# publish that quietly downgrades its own credential is worse than one that fails
+# and says why. Retained only until the npm token is no longer needed.
 #
 # Node 24, not 22. setup-node's node 22 ships npm 10.9.9, which authenticates via
 # OIDC but cannot emit provenance; node 24 ships npm 11.x. Without the bump,
@@ -48,6 +51,17 @@ name: Release (npm)
 # 2.0.0's index.js has a syntax error and spawns a Python module that does not
 # exist, so it cannot have a working consumer. `latest` should mean "the release
 # that works", and that is now 1.2.0.
+#
+# Upload success is not read visibility
+# --------------------------------------
+# `npm publish` returns when the write path accepts the tarball. The read path is
+# a CDN that converges asynchronously, so the verification step polls the packument
+# with a growing backoff for several minutes before concluding anything. It reads
+# the registry over HTTP rather than through `npm view`, whose answers come from a
+# local cache and would make the check a question about the runner rather than the
+# registry. Run 37120477453 published 1.2.0 successfully and was failed by a
+# sixty-second poll; see the verification step and
+# .github/scripts/wait_for_npm_visibility.py.
 
 on:
   push:
@@ -332,42 +346,36 @@ jobs:
         # rather than silently produce an unattributed tarball.
         run: npm publish --access public --tag latest
 
+      # The upload returning is not the version being readable. `npm publish`
+      # completes when the registry's WRITE path accepts the tarball; the READ
+      # path is served from a CDN that converges asynchronously.
+      #
+      # This step used to poll six times at a flat ten seconds -- a sixty-second
+      # budget -- and then exit 1. Release (npm) run 37120477453 published
+      # 1.2.0 successfully, the version is on the registry today carrying Sigstore
+      # and SLSA provenance whose statement names that very run, and the job still
+      # failed with "not publicly visible after 6 attempts", because the read path
+      # needed roughly 95 seconds. A sibling repository measured the same shape.
+      #
+      # So: a bounded poll with a growing backoff that spans the real propagation
+      # window, first match wins. The decision comes from a direct HTTP read of the
+      # packument rather than `npm view`, because npm answers `view` out of its
+      # local `_cacache` -- that makes the probe a question about the runner's
+      # cache rather than about the registry, which can read "absent" long after
+      # the CDN has the version. See the module docstring in the script for the
+      # full rationale.
+      #
+      # On a deadline miss it emits ::warning:: and exits non-zero. The upload was
+      # never rolled back, so the warning says so plainly, but a version that
+      # genuinely never appeared must still fail the run: reporting success for a
+      # release that did not happen is worse than a red job.
       - name: Verify the publication is publicly visible
         if: steps.gate.outputs.skip != 'true'
-        shell: bash
-        run: |
-          set -euo pipefail
-          package="axiomize-quantum-skills-2.0"
-          version="${{ steps.pkg.outputs.version }}"
-          for attempt in 1 2 3 4 5 6; do
-            if npm view "${package}@${version}" version > /dev/null 2>&1; then
-              echo "npm publication verified: ${package}@${version}"
-              now="$(npm view "${package}" dist-tags.latest 2>/dev/null || echo '<none>')"
-              {
-                echo ""
-                echo "### npm release complete"
-                echo ""
-                echo "- credential mode: \`${{ steps.mode.outputs.mode }}\`"
-                if [ "${{ steps.mode.outputs.mode }}" = "token" ]; then
-                  echo "- provenance: **not generated** (token mode has no OIDC identity)"
-                else
-                  echo "- provenance: attached"
-                fi
-                echo "- published: \`${package}@${version}\`"
-                echo "- \`latest\` now: \`${now}\`"
-                if [ "$now" != "$version" ]; then
-                  echo ""
-                  echo "\`latest\` still points at \`${now}\`, which is a different"
-                  echo "version. That is expected here and not an error; see the workflow"
-                  echo "header."
-                fi
-              } >> "$GITHUB_STEP_SUMMARY"
-              exit 0
-            fi
-            sleep 10
-          done
-          echo "::error::The upload completed but ${package}@${version} is not publicly visible after 6 attempts."
-          exit 1
+        run: >-
+          python .github/scripts/wait_for_npm_visibility.py
+          --package axiomize-quantum-skills-2.0
+          --version ${{ steps.pkg.outputs.version }}
+          --mode ${{ steps.mode.outputs.mode }}
 
       - name: Summarise a no-op run
         if: steps.gate.outputs.skip == 'true'
