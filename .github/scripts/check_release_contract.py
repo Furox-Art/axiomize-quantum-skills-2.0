@@ -190,6 +190,108 @@ def _changelog_version() -> str:
     return match.group(1).strip()
 
 
+WORKFLOW_DIR = ROOT / ".github" / "workflows"
+
+#: Metadata-Version this project's build backend emits. A constant because the
+#: release contract runs before anything is built; the `distributions` CI job is
+#: the empirical backstop, since it runs `python -m build` and then
+#: `twine check --strict` with the pinned twine and fails loudly if the backend
+#: ever starts emitting a version the pin cannot read.
+EMITTED_METADATA_VERSION = "2.5"
+
+#: Minimum twine that can validate each Metadata-Version. Measured against the
+#: real artifacts, not read off release notes.
+#:
+#: twine 6.x monkeypatches packaging.metadata._VALID_METADATA_VERSIONS down to a
+#: hardcoded list that ends at 2.4 ("Monkeypatch Metadata 2.0 support" near the
+#: top of twine/package.py). Importing twine therefore *removes* versions the
+#: installed packaging already understands -- packaging 26.3 ships 2.5 and 2.6 --
+#: and twine 6.2.0 rejected this project's own wheel with:
+#:     InvalidDistribution: Invalid distribution metadata:
+#:     '2.5' is not a valid metadata version
+#: twine 7.0.0 removed the monkeypatch, so validation follows packaging again.
+#: The failure looks like a metadata problem and is not one: nothing about the
+#: wheel was wrong, and the fix is never to relax --strict or hand-edit metadata.
+MIN_TWINE_FOR_METADATA = {
+    "2.1": (6, 0, 0),
+    "2.2": (6, 0, 0),
+    "2.3": (6, 0, 0),
+    "2.4": (6, 0, 0),
+    "2.5": (7, 0, 0),
+    "2.6": (7, 0, 0),
+}
+
+
+def _version_tuple(value: str) -> tuple[int, ...]:
+    numbers: list[int] = []
+    for part in value.split(".")[:3]:
+        digits = re.match(r"[0-9]+", part)
+        numbers.append(int(digits.group()) if digits else 0)
+    return tuple(numbers)
+
+
+def _strip_yaml_comment(line: str) -> str:
+    """Drop a trailing YAML comment so prose cannot read as a version pin.
+
+    Needed because the comment explaining this very check names the old broken
+    pin, and a naive scan reported the comment as the offending line.
+    """
+    quote: str | None = None
+    for index, char in enumerate(line):
+        if quote is not None:
+            if char == quote:
+                quote = None
+        elif char in "\"'":
+            quote = char
+        elif char == "#" and (index == 0 or line[index - 1].isspace()):
+            return line[:index]
+    return line
+
+
+def _twine_pin_failures(
+    metadata_version: str, workflow_dir: Path | None = None
+) -> list[str]:
+    """Fail when a workflow that runs ``twine check`` pins a twine too old for
+    ``metadata_version``, or pins nothing at all.
+
+    An unpinned twine is a failure too, and that is not pedantry: the
+    ``distributions`` job used to install twine unpinned while ``release.yml``
+    pinned an old one, so the pull-request gate validated the artifacts with a
+    different twine than the one that would publish them. The gate passed and the
+    release still failed. The workflow directory is a parameter so a test can
+    exercise this without editing the real workflows.
+    """
+    required = MIN_TWINE_FOR_METADATA.get(metadata_version)
+    if required is None:
+        return [
+            f"no known minimum twine for Metadata-Version {metadata_version}; "
+            "add it to MIN_TWINE_FOR_METADATA"
+        ]
+    minimum = ".".join(str(part) for part in required)
+    directory = workflow_dir if workflow_dir is not None else WORKFLOW_DIR
+    failures: list[str] = []
+    for path in sorted(directory.glob("*.y*ml")):
+        raw_lines = path.read_text(encoding="utf-8").splitlines()
+        code = "\n".join(_strip_yaml_comment(line) for line in raw_lines)
+        if "twine check" not in code:
+            continue
+        rel = path.name
+        pins = re.findall(r"twine==([0-9][0-9A-Za-z.\-]*)", code)
+        if not pins:
+            failures.append(
+                f"{rel} runs `twine check` without pinning twine, so the gate and "
+                "the release can validate with different twine versions"
+            )
+            continue
+        for pin in pins:
+            if _version_tuple(pin) < required:
+                failures.append(
+                    f"{rel} pins twine=={pin}, which cannot validate "
+                    f"Metadata-Version {metadata_version}; need >={minimum}"
+                )
+    return failures
+
+
 #: Workflows that publish to a registry. Matched by prefix because the names
 #: carry the target ("Release (PyPI)", "Release (npm)"); the previous single
 #: string comparison silently stopped matching the moment a name was extended,
@@ -260,6 +362,18 @@ def main() -> int:
             print(f"  - {failure}", file=sys.stderr)
         return 1
     print("README currency claims: none contradict the release version")
+
+    twine_failures = _twine_pin_failures(EMITTED_METADATA_VERSION)
+    if twine_failures:
+        print(
+            "FAIL: a workflow pins a twine that cannot validate the metadata "
+            "version this project builds",
+            file=sys.stderr,
+        )
+        for failure in twine_failures:
+            print(f"  - {failure}", file=sys.stderr)
+        return 1
+    print(f"twine pins: all accept Metadata-Version {EMITTED_METADATA_VERSION}")
 
     # Cross-check against the shared helper so both gates read one definition.
     try:

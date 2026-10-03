@@ -298,7 +298,13 @@ jobs:
       - name: Build wheel and sdist
         run: |
           python -m pip install --upgrade pip
-          python -m pip install build twine
+          # twine is pinned to the same version release.yml publishes with, and
+          # not left to float. It used to be installed unpinned here, so this job
+          # validated the artifacts with the newest twine while the release job
+          # published with twine==6.2.0 -- a gate that passed on the pull request
+          # and then failed the release. check_release_contract.py now asserts
+          # that every twine pin here meets the metadata version we emit.
+          python -m pip install "build==1.4.0" "twine==7.0.0"
           python -m build
       - name: Validate distribution metadata
         run: python -m twine check --strict dist/*

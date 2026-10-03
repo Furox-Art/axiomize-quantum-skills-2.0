@@ -117,3 +117,67 @@ def test_readme_currency_guard_is_satisfied_by_the_real_readme() -> None:
     text = (module.ROOT / "README.md").read_text(encoding="utf-8")
     current = module._readme_version()
     assert module._readme_currency_failures(text, current) == []
+
+
+def _workflow(tmp_path: Path, body: str) -> Path:
+    directory = tmp_path / "workflows"
+    directory.mkdir(exist_ok=True)
+    (directory / "release.yml").write_text(body, encoding="utf-8")
+    return directory
+
+
+def test_twine_pin_guard_rejects_the_pin_that_failed_the_release(tmp_path: Path) -> None:
+    """twine 6.2.0 is the pin that broke run 37159564533 on Metadata 2.5."""
+    module = _release_contract_module()
+    directory = _workflow(
+        tmp_path,
+        'jobs:\n  build:\n    steps:\n'
+        '      - run: pip install "twine==6.2.0"\n'
+        "      - run: python -m twine check --strict dist/*\n",
+    )
+    failures = module._twine_pin_failures("2.5", directory)
+    assert len(failures) == 1
+    assert "twine==6.2.0" in failures[0]
+    assert "2.5" in failures[0]
+
+
+def test_twine_pin_guard_rejects_an_unpinned_twine(tmp_path: Path) -> None:
+    """The unpinned ci.yml install is how the PR gate passed and release failed."""
+    module = _release_contract_module()
+    directory = _workflow(
+        tmp_path,
+        "jobs:\n  build:\n    steps:\n"
+        "      - run: python -m pip install build twine\n"
+        "      - run: python -m twine check --strict dist/*\n",
+    )
+    failures = module._twine_pin_failures("2.5", directory)
+    assert len(failures) == 1
+    assert "without pinning twine" in failures[0]
+
+
+def test_twine_pin_guard_ignores_a_pin_named_only_in_a_comment(tmp_path: Path) -> None:
+    """The comment explaining the bug names the old pin; prose is not a pin."""
+    module = _release_contract_module()
+    directory = _workflow(
+        tmp_path,
+        "jobs:\n  build:\n    steps:\n"
+        '      - run: pip install "twine==7.0.0"\n'
+        "      # it used to pin twine==6.2.0 here\n"
+        "      - run: python -m twine check --strict dist/*\n",
+    )
+    assert module._twine_pin_failures("2.5", directory) == []
+
+
+def test_twine_pin_guard_allows_the_current_pin_and_real_workflows() -> None:
+    module = _release_contract_module()
+    assert module._twine_pin_failures(
+        module.EMITTED_METADATA_VERSION, module.WORKFLOW_DIR
+    ) == []
+
+
+def test_twine_pin_guard_reports_an_unknown_metadata_version() -> None:
+    """An unmapped metadata version must fail loudly, never silently pass."""
+    module = _release_contract_module()
+    failures = module._twine_pin_failures("9.9", None)
+    assert len(failures) == 1
+    assert "MIN_TWINE_FOR_METADATA" in failures[0]
