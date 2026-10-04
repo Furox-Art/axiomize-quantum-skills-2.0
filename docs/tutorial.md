@@ -327,4 +327,4 @@ Fitted values come back with confidence intervals and explicit fit-quality score
 | `needs a model_ir ... JSONDecodeError: Unexpected UTF-8 BOM` | Your editor wrote a UTF-8 BOM. Save as plain UTF-8, no BOM |
 | `MigrationApprovalRequired` | Your IR uses a legacy field layout. Re-run with `--approve-migration` to see the preview diff, then update |
 | `npx axiomize-quantum` exits `127` saying it could not launch | The npm package is a launcher shim: install the Python package first (`pip install axiomize-quantum-skills-2.0`) so the CLI is on `PATH` |
-| `npx axiomize-quantum` fails with `SyntaxError: Unexpected token ';'` | You have the superseded `2.0.0` pinned. `npm install axiomize-quantum-skills-2.0@1.2.0`, or check `npm view axiomize-quantum-skills-2.0 dist-tags` |
+| `npx axiomize-quantum` fails with `SyntaxError: Unexpected token ';'` | You have the superseded `2.0.0` pinned. `npm install axiomize-quantum-skills-2.0@1.2.1`, or check `npm view axiomize-quantum-skills-2.0 dist-tags` |

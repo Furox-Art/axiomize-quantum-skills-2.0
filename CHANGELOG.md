@@ -34,6 +34,79 @@ always be the current version.
 
 ## Unreleased
 
+### Fixed (supply chain)
+
+- **Corrected a false claim this project made about its own PyPI release.**
+  `docs/publishing-checklist.md` said PyPI had *"no public per-artifact attestation API
+  comparable to npm's"* and that the release was *"evidenced by the GitHub Actions run and
+  the PyPI upload timestamp"*. Both were wrong. PyPI serves
+  [PEP 740](https://peps.python.org/pep-0740/) attestations **per file**, and this package
+  has one on both artifacts of `1.2.1`. Verified:
+
+  ```
+  GET /integrity/axiomize-quantum-skills-2.0/1.2.1/axiomize_quantum_skills_2_0-1.2.1-py3-none-any.whl/provenance -> 200
+    in-toto v1, predicateType https://docs.pypi.org/attestations/publish/v1
+    publisher: kind=GitHub repository=Furox-Art/axiomize-quantum-skills-2.0
+               workflow=release.yml environment=pypi
+    subject sha256 b9a764c5ea1f57c78815536e5d42c2ede51b870ab7f79c852a886988ab60d53a
+    == PyPI digests.sha256 for the same file
+  ```
+
+  The claim came from reading a `404` as "no attestation". The `404` was the wrong URL
+  shape: `/integrity/<project>/<version>/` is not an endpoint, while
+  `/integrity/<project>/<version>/<filename>/provenance` is. Both shapes are now shown side
+  by side with the interpretation spelled out, because that inversion is easy to repeat.
+- **The three supply-chain mechanisms are now separated everywhere they appear** in
+  `README.md`, `SECURITY.md` and `docs/publishing-checklist.md`: a **digest**
+  (`dist.integrity`, `digests.sha256`) proves bytes match and nothing about the build;
+  npm's **`dist.signatures`** is a registry *transport* signature present for every package
+  and is never build provenance; a **build attestation** is the only one that names a
+  workflow, repository and commit. `npm audit signatures` is labelled as verifying the
+  transport signature only.
+- **The trusted-publisher condition is stated, and its state reported per registry instead
+  of generalised.** For this package it is satisfied on both registries, and the
+  attestations are the evidence: npm's SLSA statement names
+  `runDetails.builder.id = https://github.com/actions/runner/github-hosted` and
+  `externalParameters.workflow.path = .github/workflows/npm-publish.yml`; PyPI's publisher
+  block names `workflow=release.yml, environment=pypi`. Only a trusted-publishing upload
+  produces either. A sibling repository by the same owner publishes identically on PyPI and
+  has **no** npm trusted publisher, so its npm tarball is digest-only. The docs say
+  explicitly that whether a package is attested is a per-registry fact to be measured, not a
+  property of the owner or the CI system.
+- **Supply-chain version references refreshed to `1.2.1`**, which is current on both
+  registries, with npm `shasum`, integrity and the PyPI wheel digest re-measured. The
+  `--provenance` and token-mode sections now name `1.2.1`.
+- Per-channel guidance added: npm's SLSA v1 statement proves the resolved commit, which
+  PyPI's PEP 740 publish attestation does not, so a consumer knows which to read.
+- `SECURITY.md` gains a supply-chain section it previously lacked, covering the three
+  mechanisms, the two endpoints, and the wrong-URL-shape trap.
+
+### Added (supply chain)
+
+- **`docs/check_attestation_claims.py`**, a regression guard for supply-chain claims, with
+  a built-in negative control. It rejects any claim that names no channel, states no
+  definite status, presents `dist.signatures` as provenance, calls a stale version current,
+  or quotes a PyPI integrity URL without the wrong-URL-shape caveat.
+
+  ```bash
+  python docs/check_attestation_claims.py             # scan the docs
+  python docs/check_attestation_claims.py --online    # also re-measure both registries
+  python docs/check_attestation_claims.py --self-test # negative control
+  ```
+
+  `--self-test` feeds the guard six deliberately false claims and fails unless all six are
+  rejected, one correct channel-scoped claim it must accept, and two same-word-different-
+  meaning cases it must not flag (`docs/benchmark.md` measurement provenance,
+  `docs/example-gallery.md` parameter provenance). The guard also inherits channel scope
+  from headings, so a paragraph under `### npm` need not repeat the word. Not wired into
+  CI, because this change set does not touch workflows; the step that would do it is noted
+  here.
+
+### Not claimed (supply chain)
+
+- No security claim is weakened. Both registries remain described as attested, because both
+  are.
+
 ### Fixed (documentation)
 
 - **README no longer claims a command produces a plot it does not.** It said "that curve is

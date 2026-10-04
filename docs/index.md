@@ -101,7 +101,7 @@ Full walkthrough: [tutorial.md](tutorial.md).
   [security.md](security.md).
 - The npm package is a thin Node launcher shim (6 files, about 44 kB) that spawns the
   Python CLI; it is not a second implementation, so the Python package must be installed
-  and on `PATH`. PyPI and npm are both on `1.2.0` and the npm tarball is attested.
+  and on `PATH`. PyPI and npm are both on `1.2.1` and both are attested.
 
 ## Links
 
