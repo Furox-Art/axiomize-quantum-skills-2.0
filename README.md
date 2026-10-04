@@ -15,10 +15,12 @@ Download numbers live on the package pages themselves, where they are always cur
 [PyPI](https://pypi.org/project/axiomize-quantum-skills-2.0/) ·
 [npm](https://www.npmjs.com/package/axiomize-quantum-skills-2.0)
 
-**PyPI and npm both carry the release named above.** The npm package is a **thin Node launcher shim**, not
-the engine: six files, about 44 kB, one job — spawn the Python CLI. So install the Python
-package first. It is published over OIDC trusted publishing and carries Sigstore and SLSA v1
-provenance attestations; details and a verification recipe are in
+**PyPI and npm both carry the release named above, and both publish by OIDC trusted
+publishing.** The npm package is a **thin Node launcher shim**, not the engine: six files,
+about 44 kB, one job — spawn the Python CLI. So install the Python package first. The npm
+tarball carries Sigstore attestations including a full SLSA v1 build provenance statement,
+and the PyPI release carries a PEP 740 attestation per artifact. Details, the three
+mechanisms they are easy to confuse with, and a verification recipe are in
 [docs/publishing-checklist.md](docs/publishing-checklist.md#supply-chain).
 
 **Documentation:** <https://furox-art.github.io/axiomize-quantum-skills-2.0/>

@@ -112,7 +112,7 @@ It resolves the console script first and falls back to `python -m axiomize.cli`,
 propagates the child's exit code (a bad subcommand exits 2, `--help` exits 0). Set
 `AXIOMIZE_PYTHON` to pin the interpreter or `AXIOMIZE_CLI` to pin the entry point.
 
-Registry state, verified against `registry.npmjs.org`: `latest` is `1.2.0`, matching PyPI.
+Registry state, verified against `registry.npmjs.org`: `latest` is `1.2.1`, matching PyPI.
 The tarball holds six files and about 44 kB, and it was published over OIDC trusted
 publishing with two Sigstore attestations — an npm publish attestation plus a
 [SLSA v1 provenance](https://slsa.dev/provenance/v1) statement whose
@@ -123,7 +123,7 @@ and the digest inside both attestations.
 
 npm also still holds the superseded `2.0.0`, whose `index.js` is the old syntactically
 invalid one. It is no longer the `latest` dist-tag, so an unpinned
-`npm install axiomize-quantum-skills-2.0` gets `1.2.0`. `npm view axiomize-quantum-skills-2.0 dist-tags`
+`npm install axiomize-quantum-skills-2.0` gets `1.2.1`. `npm view axiomize-quantum-skills-2.0 dist-tags`
 tells you which one you have.
 
 ## Via REST (v1)

@@ -55,6 +55,37 @@ endpoints, generated-code execution, formal-tool adapters, file paths, and docum
 conversion are all treated as untrusted-input surfaces unless explicitly documented
 otherwise.
 
+## Supply chain
+
+Both registries publish by OIDC trusted publishing, and **both attach a build
+attestation**. Three mechanisms are easy to confuse, and only the third is build
+provenance:
+
+| Mechanism | Proves | Does **not** prove |
+|---|---|---|
+| `dist.integrity` / `digests.sha256` | The bytes you received are the bytes that were published. | How they were built. |
+| npm `dist.signatures` | The **registry** signed the packument; the metadata was not altered in transit. A transport signature, **not** provenance. | Anything about the build. npm signs every package. |
+| Build attestation | A named CI workflow, repository and commit produced the artifact. | That the build was correct. |
+
+Verify by hand:
+
+```bash
+# npm: two bundles, including a full SLSA v1 build provenance statement
+curl -s https://registry.npmjs.org/-/npm/v1/attestations/axiomize-quantum-skills-2.0@1.2.1
+
+# PyPI: one bundle per file, predicate https://docs.pypi.org/attestations/publish/v1
+curl -s https://pypi.org/integrity/axiomize-quantum-skills-2.0/1.2.1/axiomize_quantum_skills_2_0-1.2.1-py3-none-any.whl/provenance
+```
+
+PyPI serves attestations **per file**, so the path ends in `/<filename>/provenance`.
+`https://pypi.org/integrity/axiomize-quantum-skills-2.0/1.2.1/` is not an endpoint and
+returns `404`; that means "no such URL", not "no attestation".
+
+If you are triaging a report about a tampered artifact, the npm or PyPI attestation is
+where the build identity is; the digest only tells you whether the bytes moved.
+[docs/publishing-checklist.md](docs/publishing-checklist.md#supply-chain) has the field
+tables and the trusted-publisher conditions.
+
 ## Security model
 
 Axiomize distinguishes three classes of execution:
