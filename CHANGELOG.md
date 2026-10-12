@@ -354,6 +354,14 @@ always be the current version.
 
 ## Releases (axiomize-quantum-skills-2.0)
 
+## [1.2.2] - 2026-10-12
+
+Housekeeping release. Publishes the post-1.2.1 repository state (CI dependency bump
+#18) to PyPI and npm: the 1.2.1 upload predates that CI change, so both registries
+were one commit behind `main`. `codemeta.json` and `CITATION.cff` also said `1.2.0`
+while the package shipped as 1.2.1; both now follow the release line. No public API,
+REST, MCP or skill-surface change.
+
 ## [1.2.1] - 2026-10-03
 
 Documentation corrections and test coverage. No public API change: the console entry

@@ -9,8 +9,8 @@ abstract: >-
   hypotheses alive, scores them against evidence, prunes weak branches and collapses to a
   conclusion only when the evidence supports it.
 type: software
-version: 1.2.0
-date-released: "2026-09-30"
+version: 1.2.2
+date-released: "2026-10-12"
 license: MIT
 repository-code: "https://github.com/Furox-Art/axiomize-quantum-skills-2.0"
 url: "https://furox-art.github.io/axiomize-quantum-skills-2.0/"
