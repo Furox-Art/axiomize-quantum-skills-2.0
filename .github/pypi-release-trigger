@@ -1,4 +1,4 @@
-axiomize-quantum-skills-2.0 1.2.2
+axiomize-quantum-skills-2.0 1.2.3
 post-1.2.1 repository state (CI dependency bump #18) plus codemeta/CITATION version drift correction
 front-door and AIPW statsmodels reference checks, exponential and student_t likelihoods with optional MALA sampler, benchmark corpus extended to 25 cases
 PyPI release attempt 2 for 1.2.1. Attempt 1 (run 37159564533) failed at Validate distributions: twine 6.2.0 rejects Metadata-Version 2.5, fixed by #34.
