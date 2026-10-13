@@ -13,10 +13,17 @@ import re
 import xml.etree.ElementTree as ET
 from typing import Any
 
-import sympy as sp
-
 from axiomize.model_ir import ModelFamily, ModelIR
 from axiomize.safe_expression import sympy_expression as _sympy_expression
+
+
+def _sympy():
+    # Imported lazily so the ``import axiomize`` chain -- and therefore every
+    # CLI invocation, including ``axiomize tools`` -- does not pay the SymPy
+    # import cost just to expose the tool inventory.
+    import sympy as sp  # type: ignore[import-untyped]
+
+    return sp
 
 _MATHML_NS = "http://www.w3.org/1998/Math/MathML"
 _SBML_NS = "http://www.sbml.org/sbml/level3/version2/core"
@@ -37,11 +44,13 @@ def _symbols(model: ModelIR) -> dict[str, Any]:
     names = [v.name for v in model.variables]
     names.extend(p.name for p in model.parameters)
     names.append(model.independent_variable)
+    sp = _sympy()
     return {name: sp.Symbol(name, real=True) for name in names}
 
 
 def _math_element(expression: str, symbols: dict[str, Any]) -> ET.Element:
     expr = _sympy_expression(expression, symbols)
+    sp = _sympy()
     body = sp.printing.mathml(expr, printer="content")
     return ET.fromstring(f'<math xmlns="{_MATHML_NS}">{body}</math>')
 

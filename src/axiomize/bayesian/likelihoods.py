@@ -15,7 +15,6 @@ import math
 from typing import Any
 
 import numpy as np
-from scipy.special import gammaln
 
 SUPPORTED_FAMILIES = ("normal", "poisson", "bernoulli", "gamma", "exponential", "student_t")
 
@@ -71,6 +70,12 @@ def log_likelihood(
     mean = np.asarray(mean, dtype=float)
     if not _validate_shape(observed, mean):
         return -math.inf
+
+    # scipy is imported here, not at module scope: this module is part of the
+    # ``import axiomize`` chain, and every CLI invocation -- including
+    # ``axiomize tools`` -- pays the SciPy/SymPy import cost otherwise. Only
+    # the student_t, poisson and gamma families need ``gammaln``.
+    from scipy.special import gammaln  # type: ignore[import-untyped]
 
     if fam == "normal":
         if sigma is None or sigma <= 0 or not math.isfinite(sigma):
