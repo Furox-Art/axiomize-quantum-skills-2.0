@@ -63,7 +63,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 #: Bumped together with the release.
-CURRENT_VERSION = "1.2.1"
+CURRENT_VERSION = "1.2.3"
 
 DIST = "axiomize_quantum_skills_2_0"
 PROJECT = "axiomize-quantum-skills-2.0"

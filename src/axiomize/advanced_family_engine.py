@@ -15,6 +15,7 @@ from typing import Any, Callable
 import numpy as np
 
 from axiomize.model_ir import ModelFamily, ModelIR
+from axiomize.safe_expression import sympy_expression, validate_expression
 
 _ALLOWED_FUNCTIONS = {
     "sin", "cos", "tan", "asin", "acos", "atan", "sinh", "cosh", "tanh",
@@ -23,20 +24,14 @@ _ALLOWED_FUNCTIONS = {
 
 
 def _validate_expression(expression: str, allowed_names: set[str]) -> None:
-    tree = ast.parse(str(expression), mode="eval")
-    allowed_nodes = (
-        ast.Expression, ast.Constant, ast.Name, ast.Load, ast.BinOp, ast.UnaryOp,
-        ast.Add, ast.Sub, ast.Mult, ast.Div, ast.Pow, ast.Mod, ast.USub, ast.UAdd,
-        ast.Call,
-    )
-    for node in ast.walk(tree):
-        if not isinstance(node, allowed_nodes):
-            raise ValueError(f"unsupported expression syntax: {type(node).__name__}")
-        if isinstance(node, ast.Name) and node.id not in allowed_names and node.id not in _ALLOWED_FUNCTIONS:
-            raise ValueError(f"unknown symbol in expression: {node.id}")
-        if isinstance(node, ast.Call):
-            if not isinstance(node.func, ast.Name) or node.func.id not in _ALLOWED_FUNCTIONS:
-                raise ValueError("only approved mathematical functions may be called")
+    """Run the shared validator (budgets + node set), not a local copy.
+
+    The module-local whitelist preceded the shared complexity budgets, so a
+    deep or power-packed expression still reached sympy's evaluator — the
+    exponent-bomb class. Allowing the shared function set keeps behaviour
+    identical for valid input.
+    """
+    validate_expression(expression, allowed_names=set(allowed_names))
 
 
 def _compile_expression(expression: str, arg_names: list[str]) -> Callable[..., Any]:
@@ -44,11 +39,9 @@ def _compile_expression(expression: str, arg_names: list[str]) -> Callable[..., 
 
     symbols = {name: sp.Symbol(name, real=True) for name in arg_names}
     _validate_expression(expression, set(symbols))
-    local_dict: dict[str, Any] = dict(symbols)
-    for name in _ALLOWED_FUNCTIONS:
-        if hasattr(sp, name):
-            local_dict[name] = getattr(sp, name)
-    expr = sp.sympify(expression, locals=local_dict)
+    # AST-walked + budgeted parsing (safe_expression), not evaluator sympify:
+    # model expressions are user data and must not be able to execute code.
+    expr = sympy_expression(expression, symbols)
     return sp.lambdify([symbols[name] for name in arg_names], expr, modules=["numpy", "math"])
 
 

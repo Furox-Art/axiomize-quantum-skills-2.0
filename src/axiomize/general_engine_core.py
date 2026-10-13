@@ -17,6 +17,8 @@ from typing import Any, Callable
 
 import numpy as np
 
+from axiomize.safe_expression import validate_expression, sympy_expression
+
 from axiomize.model_ir import (
     CURRENT_SCHEMA_VERSION,
     ConstraintSpec,
@@ -224,31 +226,30 @@ def build_execution_plan(model: ModelIR, *, action: str = "simulate", points: in
 
 
 def _validate_expression_syntax(expression: str, allowed_names: set[str]) -> None:
-    tree = ast.parse(expression, mode="eval")
-    allowed_nodes = (
-        ast.Expression, ast.Constant, ast.Name, ast.Load, ast.BinOp, ast.UnaryOp,
-        ast.Add, ast.Sub, ast.Mult, ast.Div, ast.Pow, ast.Mod, ast.USub, ast.UAdd,
-        ast.Call,
-    )
-    for node in ast.walk(tree):
-        if not isinstance(node, allowed_nodes):
-            raise ValueError(f"unsupported expression syntax: {type(node).__name__}")
-        if isinstance(node, ast.Name) and node.id not in allowed_names and node.id not in _ALLOWED_FUNCTIONS:
-            raise ValueError(f"unknown symbol in expression: {node.id}")
-        if isinstance(node, ast.Call):
-            if not isinstance(node.func, ast.Name) or node.func.id not in _ALLOWED_FUNCTIONS:
-                raise ValueError("only approved mathematical functions may be called")
+    """Enforce the shared expression budgets before anything parses.
+
+    The module-local AST whitelist did not enforce the complexity limits
+    (length, node count, depth, exponent magnitude), so a deep or power-packed
+    expression still reached sympy's evaluator and became CPU/memory
+    exhaustion — the class jax_tool's fix closed by delegating to
+    safe_expression. The model's own symbols are the namespace; the approved
+    function set is the shared one, which matches what this module used to
+    carry (verified equal), so valid input behaves identically.
+    """
+    validate_expression(expression, allowed_names=set(allowed_names))
 
 
 def _sympy_expression(expression: str, symbols: dict[str, Any]) -> Any:
-    import sympy as sp
+    """Parse a model expression into a sympy object, AST-walked and budgeted.
 
+    The engine's promise is that user-supplied equations cannot execute code.
+    sp.sympify with a locals dict is evaluator semantics; the shared
+    safe_expression parser walks the AST with sympy's own exceptions disabled
+    and enforces the budgets, so this delegates to it rather than keeping a
+    second, weaker grammar here.
+    """
     _validate_expression_syntax(expression, set(symbols))
-    local_dict = dict(symbols)
-    for name in _ALLOWED_FUNCTIONS:
-        if hasattr(sp, name):
-            local_dict[name] = getattr(sp, name)
-    return sp.sympify(expression, locals=local_dict)
+    return sympy_expression(expression, symbols)
 
 
 def _parameter_values(model: ModelIR, overrides: dict[str, float] | None = None) -> dict[str, float]:
