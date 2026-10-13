@@ -159,7 +159,7 @@ cp -r axiomize-quantum-skills-2.0/skills/quantum-reasoning ~/.config/opencode/sk
   first-principles routing, and **5 report templates** in
   [`skills/axiomize/templates/`](skills/axiomize/templates/) — the 10-section
   [report](skills/axiomize/templates/report.md), parameters, assumptions, glossary, subagent brief.
-- **13 domain packs** in [`packs/`](packs/): curated bundles of which archetypes, lenses and
+- **12 domain packs** in [`packs/`](packs/): curated bundles of which archetypes, lenses and
   examples matter in a given domain — epidemiology, operations, economics, ecology, project
   management, physics, chemistry, biology, climate, engineering, finance, probability, plus the
   [index](packs/domain-packs.md).
