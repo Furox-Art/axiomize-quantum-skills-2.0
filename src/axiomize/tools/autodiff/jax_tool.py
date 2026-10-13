@@ -10,7 +10,29 @@ from __future__ import annotations
 
 from typing import Any, ClassVar
 
+from axiomize.safe_expression import auto_symbol_map, sympy_expression
 from axiomize.tools.base import ScientificTool
+
+
+def _parsed_function(function_expr: str) -> tuple[dict[str, Any], Any]:
+    """Parse the tool's ``function`` argument through the hardened parser.
+
+    Returns a symbol map that always contains ``x`` plus the SymPy
+    expression. The text is never passed to ``sympy.sympify``: sympify
+    *evaluates* its string argument, so a tool-supplied expression could
+    execute arbitrary Python. Only a bounded arithmetic AST is accepted and
+    it is translated directly to SymPy.
+    """
+    import sympy
+
+    symbols = auto_symbol_map(function_expr)
+    unexpected = sorted(set(symbols) - {"x"})
+    if unexpected:
+        raise ValueError(
+            f"jax: function expression must depend on x only; got symbols: {unexpected}"
+        )
+    symbols.setdefault("x", sympy.Symbol("x", real=True))
+    return symbols, sympy_expression(function_expr, symbols)
 
 
 class JAXTool(ScientificTool):
@@ -62,6 +84,13 @@ class JAXTool(ScientificTool):
     # ------------------------------------------------------------------ #
     def execute(self, payload: dict[str, Any]) -> dict[str, Any]:
         self.validate_input(payload)
+        operation = str(payload.get("operation", "grad"))
+        x_raw = payload["x"]
+        function_expr = str(payload.get("function", "x**2"))
+        # The expression is validated and translated BEFORE the availability
+        # gate and before JAX is imported, so hostile text is rejected as a
+        # ValueError and can never reach an evaluating sympy parser.
+        symbols, expr = _parsed_function(function_expr)
         meta = self.availability()
         if not meta.available:
             reason = meta.reason or "No module named 'jax'"
@@ -74,18 +103,8 @@ class JAXTool(ScientificTool):
         import numpy as np
         import sympy
 
-        operation = str(payload.get("operation", "grad"))
-        x_raw = payload["x"]
         x = jnp.asarray(x_raw, dtype=float)
-        function_expr = str(payload.get("function", "x**2"))
-        x_sym = sympy.Symbol("x")
-        expr = sympy.sympify(function_expr)
-        free = expr.free_symbols
-        if free and free != {x_sym}:
-            raise ValueError(
-                f"jax: function expression must depend on x only; got symbols: {free}"
-            )
-        raw_fn = sympy.lambdify(x_sym, expr, modules="jax")
+        raw_fn = sympy.lambdify(symbols["x"], expr, modules="jax")
 
         def f(z: Any) -> Any:
             return jnp.sum(raw_fn(z))
