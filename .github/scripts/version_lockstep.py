@@ -2,10 +2,11 @@
 """Single source of truth for the project version.
 
 Every artefact that advertises a version -- ``pyproject.toml``,
-``src/axiomize/__init__.py``, ``package.json``, ``CHANGELOG.md`` and the PyPI
-release trigger file -- must agree. This module is the one place that reads
-them all, and :mod:`check_release_contract` plus the npm contract test both call
-into it, so the rule cannot drift between the Python and Node gates.
+``src/axiomize/__init__.py``, ``package.json``, ``CHANGELOG.md``, the PyPI
+release trigger file, ``codemeta.json`` and ``CITATION.cff`` -- must agree.
+This module is the one place that reads them all, and
+:mod:`check_release_contract` plus the npm contract test both call into it,
+so the rule cannot drift between the Python and Node gates.
 
 The rule is deliberately strict: this is a single product shipped to two
 registries, and a version split across ``pyproject.toml`` (``1.2.0``) and
@@ -37,6 +38,8 @@ SOURCES = (
     "package_json",
     "changelog",
     "pypi_trigger",
+    "codemeta",
+    "citation",
 )
 
 #: The version the release workflows are gated against.
@@ -107,6 +110,35 @@ def _trigger_version(text: str) -> str:
     return match.group(1).strip()
 
 
+def _codemeta_version(text: str) -> str:
+    """Read ``version`` from codemeta.json.
+
+    The citation metadata travels with the repository, not with the package
+    build, so it is the source most easily forgotten by a hand release. The
+    lockstep guard covers it for the same reason it covers package.json.
+    """
+    try:
+        payload = json.loads(text)
+    except json.JSONDecodeError as exc:
+        raise VersionDrift(f"codemeta.json is not valid JSON: {exc}") from exc
+    version = payload.get("version")
+    if not isinstance(version, str) or not version:
+        raise VersionDrift("codemeta.json has no string version")
+    return version.strip()
+
+
+def _citation_version(text: str) -> str:
+    """Read the top-level ``version:`` key from CITATION.cff.
+
+    Line-anchored on purpose: CFF YAML allows blocks and comments, and only
+    the top-level key is the release version.
+    """
+    match = re.search(r"^version:\s*(\S+)\s*$", text, re.MULTILINE)
+    if not match:
+        raise VersionDrift("CITATION.cff has no top-level 'version:' key")
+    return match.group(1).strip().strip('"').strip("'")
+
+
 def collect() -> dict[str, str]:
     """Return ``{source: version}`` for every version-bearing file."""
     return {
@@ -115,6 +147,8 @@ def collect() -> dict[str, str]:
         "package_json": _package_json_version(_read(ROOT / "package.json")),
         "changelog": _changelog_version(_read(ROOT / "CHANGELOG.md")),
         "pypi_trigger": _trigger_version(_read(ROOT / TRIGGER_REL)),
+        "codemeta": _codemeta_version(_read(ROOT / "codemeta.json")),
+        "citation": _citation_version(_read(ROOT / "CITATION.cff")),
     }
 
 
@@ -206,6 +240,29 @@ def write_all(version: str) -> list[Path]:
         trigger_lines[0] = f"axiomize-quantum-skills-2.0 {version}"
         trigger_path.write_text("\n".join(trigger_lines) + "\n", encoding="utf-8")
         changed.append(trigger_path)
+
+    codemeta_path = ROOT / "codemeta.json"
+    codemeta_text = _read(codemeta_path)
+    codemeta = json.loads(codemeta_text)
+    if codemeta.get("version") != version:
+        codemeta["version"] = version
+        codemeta_path.write_text(json.dumps(codemeta, indent=2) + "\n", encoding="utf-8")
+        changed.append(codemeta_path)
+
+    citation_path = ROOT / "CITATION.cff"
+    citation_text = _read(citation_path)
+    if _citation_version(citation_text) != version:
+        citation_text, count = re.subn(
+            r"^version:[^\S\n]*\S+",
+            f"version: {version}",
+            citation_text,
+            count=1,
+            flags=re.MULTILINE,
+        )
+        if count != 1:
+            raise VersionDrift("could not rewrite CITATION.cff version key")
+        citation_path.write_text(citation_text, encoding="utf-8")
+        changed.append(citation_path)
 
     return changed
 

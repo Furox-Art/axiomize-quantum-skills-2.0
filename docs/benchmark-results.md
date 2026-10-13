@@ -221,7 +221,10 @@ Run them with:
 pytest tests/test_numerical_reference.py tests/test_bayesian_likelihoods.py -q
 ```
 
-Verified `40 passed` at commit `9c2990c` on CPython 3.12.10.
+Verified `40 passed` on CPython 3.11.15 (Windows) at the audit-hardening
+verification commit recorded in `tests/test_audit_hardening_1220.py`, which
+keeps the repo-side counts (packs, perspectives, templates, examples, corpora,
+MCP tools) pinned against the code.
 
 ---
 

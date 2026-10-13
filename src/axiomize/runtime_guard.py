@@ -17,6 +17,16 @@ _MAX_CAUSAL_COVARIATES = 2048
 _MAX_CAUSAL_DESIGN_CELLS = 20_000_000
 
 
+class RuntimePatchError(RuntimeError):
+    """Raised when the surface a runtime patch targets is missing or broken.
+
+    Failing loudly at startup is deliberate: the patches this package applies
+    at import time are load-bearing (hardened expression compiler, engine
+    guards, availability-aware solver selection), and a rename that silently
+    missed its target would leave callers on the unhardened path.
+    """
+
+
 def _extra_preflight(model: ModelIR, *, points: int) -> None:
     metadata = model.metadata if isinstance(model.metadata, dict) else {}
     state_count = max(1, sum(v.role == "state" for v in model.variables))
@@ -88,3 +98,31 @@ def install_general_engine_guards(engine_module: Any) -> None:
 
     guarded.__axiomize_runtime_guard__ = True  # type: ignore[attr-defined]
     engine_module._advanced_preflight = guarded
+
+
+def install_hardened_compiler(engine_module: Any, advanced_module: Any) -> None:
+    """Point the advanced-family engine at the hardened expression compiler.
+
+    The advanced engine calls ``_compile_expression`` as a module global, so
+    silently rebinding the name (or leaving a stale one in place) would
+    change which parser every Model IR flow uses without any signal. Both
+    names must exist and be callable before the seam is applied; otherwise
+    this raises :class:`RuntimePatchError` instead of half-patching.
+    """
+    hardened = getattr(engine_module, "_compile_expression_hardened", None)
+    target = getattr(advanced_module, "_compile_expression", None)
+    if not callable(hardened):
+        raise RuntimePatchError(
+            "axiomize.general_engine does not expose a callable "
+            "'_compile_expression_hardened'; refusing to leave the advanced "
+            "engine on its own expression compiler"
+        )
+    if not callable(target):
+        raise RuntimePatchError(
+            "axiomize.advanced_family_engine does not expose a callable "
+            "'_compile_expression'; refusing to create a shadow attribute "
+            "the engine would never call"
+        )
+    if target is hardened:
+        return
+    advanced_module._compile_expression = hardened

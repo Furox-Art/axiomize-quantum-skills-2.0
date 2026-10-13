@@ -4,11 +4,53 @@ from __future__ import annotations
 from typing import Any
 
 from axiomize.model_ir import ModelFamily, ModelIR
+from axiomize.runtime_guard import RuntimePatchError
+
+#: Explicit table of the engine surface this module patches. Every entry names
+#: an attribute that must already exist: the advanced engine and the general
+#: engine call these names as their own globals, so a missing attribute would
+#: otherwise become a silently created shadow that nothing invokes. The whole
+#: table is verified before any attribute is rebound, so a broken surface
+#: fails atomically instead of half-applying.
+_PATCH_SURFACE: tuple[tuple[str, str, str], ...] = (
+    ("engine", "select_solver", "solver selection"),
+    ("engine", "numerical_refinement", "numerical refinement study"),
+    ("engine", "export_model", "portable export"),
+    ("engine", "_simulate_once", "numerical refinement study"),
+    ("engine", "_validated_span", "numerical refinement study"),
+    ("engine", "_validated_points", "numerical refinement study"),
+    ("engine", "_core", "direct-core facade"),
+    ("engine._core", "select_solver", "solver selection"),
+    ("engine._core", "export_model", "portable export"),
+    ("advanced", "_estimate_causal", "causal estimation"),
+    ("advanced", "_infer_bayesian", "bayesian inference"),
+)
+
+
+def _verify_patch_surface(engine: Any, advanced: Any) -> None:
+    """Fail loudly, before any patch, when a patch target is missing."""
+    roots = {"engine": engine, "advanced": advanced}
+    for path, attribute, purpose in _PATCH_SURFACE:
+        parent = roots[path.split(".", 1)[0]]
+        for part in path.split(".")[1:]:
+            parent = getattr(parent, part, None)
+            if parent is None:
+                raise RuntimePatchError(
+                    f"cannot install axiomize runtime patches: {path!r} "
+                    f"needed by {purpose!r} is missing from the engine surface"
+                )
+        if not hasattr(parent, attribute):
+            raise RuntimePatchError(
+                f"cannot install axiomize runtime patches: {path}.{attribute} "
+                f"needed by {purpose!r} is missing; rename it in "
+                "v120_runtime._PATCH_SURFACE in the same change"
+            )
 
 
 def install(engine: Any, advanced: Any) -> None:
     if getattr(engine, "_AXIOMIZE_112_INSTALLED", False):
         return
+    _verify_patch_surface(engine, advanced)
     from axiomize.bayesian.engine_v2 import infer_bayesian_model
     from axiomize.causal_engine import estimate_causal_model
     from axiomize.extended_export import export_extended

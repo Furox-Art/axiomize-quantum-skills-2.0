@@ -32,7 +32,7 @@ name: Release (npm)
 # Which version, and what happens to the `latest` dist-tag
 # --------------------------------------------------------
 # This package is published as 1.2.0, the same version PyPI carries, because
-# version_lockstep.py requires all five version sources to agree. The npm registry
+# version_lockstep.py requires all seven version sources to agree. The npm registry
 # already holds 2.0.0, a broken shim, and 2.0.0 sorts *above* 1.2.0.
 #
 # npm 11+ therefore refuses to imply a dist-tag and aborts:
@@ -153,9 +153,9 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.12"
-      # Five sources -- pyproject.toml, src/axiomize/__init__.py, package.json,
-      # CHANGELOG.md and the trigger file -- must agree. This is what keeps the
-      # npm and PyPI versions identical.
+      # Seven sources -- pyproject.toml, src/axiomize/__init__.py, package.json,
+      # CHANGELOG.md, the trigger file, codemeta.json and CITATION.cff -- must
+      # agree. This is what keeps the npm and PyPI versions identical.
       - name: Enforce version lockstep across both registries
         run: python .github/scripts/version_lockstep.py
 

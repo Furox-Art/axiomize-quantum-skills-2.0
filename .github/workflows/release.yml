@@ -20,7 +20,7 @@ name: Release (PyPI)
 # The npm registry is published by .github/workflows/npm-publish.yml from the
 # same trigger file. Both workflows read `.github/pypi-release-trigger`, so a
 # single version bump updates both registries: one commit, one version, and
-# version_lockstep.py asserts all five version sources agree before either upload
+# version_lockstep.py asserts all seven version sources agree before either upload
 # starts. Splitting the trigger across two files would allow a bump that reached
 # only one registry, which is the exact drift the lockstep check is there to
 # prevent. The two are separate workflows rather than one combined job so a
@@ -56,8 +56,8 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.12"
-      # Refuses to run anywhere but refs/heads/main, and requires all five version
-      # sources to agree.
+      # Refuses to run anywhere but refs/heads/main, and requires all seven
+      # version sources to agree.
       - name: Enforce release version contract
         run: python .github/scripts/version_lockstep.py
       - name: Enforce release provenance contract
