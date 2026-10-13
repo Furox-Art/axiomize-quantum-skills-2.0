@@ -17,8 +17,6 @@ from typing import Any, Callable
 
 import numpy as np
 
-from axiomize.safe_expression import validate_expression, sympy_expression
-
 from axiomize.model_ir import (
     CURRENT_SCHEMA_VERSION,
     ConstraintSpec,
@@ -236,6 +234,8 @@ def _validate_expression_syntax(expression: str, allowed_names: set[str]) -> Non
     function set is the shared one, which matches what this module used to
     carry (verified equal), so valid input behaves identically.
     """
+    from axiomize.safe_expression import validate_expression
+
     validate_expression(expression, allowed_names=set(allowed_names))
 
 
@@ -249,6 +249,8 @@ def _sympy_expression(expression: str, symbols: dict[str, Any]) -> Any:
     second, weaker grammar here.
     """
     _validate_expression_syntax(expression, set(symbols))
+    from axiomize.safe_expression import sympy_expression
+
     return sympy_expression(expression, symbols)
 
 

@@ -15,7 +15,6 @@ from typing import Any, Callable
 import numpy as np
 
 from axiomize.model_ir import ModelFamily, ModelIR
-from axiomize.safe_expression import sympy_expression, validate_expression
 
 _ALLOWED_FUNCTIONS = {
     "sin", "cos", "tan", "asin", "acos", "atan", "sinh", "cosh", "tanh",
@@ -31,6 +30,8 @@ def _validate_expression(expression: str, allowed_names: set[str]) -> None:
     exponent-bomb class. Allowing the shared function set keeps behaviour
     identical for valid input.
     """
+    from axiomize.safe_expression import validate_expression
+
     validate_expression(expression, allowed_names=set(allowed_names))
 
 
@@ -41,6 +42,8 @@ def _compile_expression(expression: str, arg_names: list[str]) -> Callable[..., 
     _validate_expression(expression, set(symbols))
     # AST-walked + budgeted parsing (safe_expression), not evaluator sympify:
     # model expressions are user data and must not be able to execute code.
+    from axiomize.safe_expression import sympy_expression
+
     expr = sympy_expression(expression, symbols)
     return sp.lambdify([symbols[name] for name in arg_names], expr, modules=["numpy", "math"])
 
