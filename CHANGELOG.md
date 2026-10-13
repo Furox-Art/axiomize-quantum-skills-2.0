@@ -2,6 +2,15 @@
 
 All notable changes to Axiomize are documented here. Axiomize follows semantic versioning; release claims are tied to exact-wheel CI/release evidence.
 
+## [1.2.3] - 2026-10-12
+### Housekeeping — audit hardening
+
+- Closes the findings of the full-repository audit: patched the concrete
+  defects (correctness, fail-closed behaviour, platform independence),
+  wired every standalone guard into CI, removed dead or duplicated code
+  paths, and pinned every doc claim to a test so it cannot silently
+  drift again. Regression tests fail without the corresponding fix.
+
 ## How to read this file
 
 This changelog covers **two version lineages** that share one history, which used to make
