@@ -70,7 +70,7 @@ fenics                  UNAVAILABLE (fenics not installed)
 ```
 
 The full list has 13 entries. `axiomize capabilities` is the machine-readable equivalent and
-leads with `"axiomize_version": "1.2.2"`.
+leads with `"axiomize_version": "1.2.3"`.
 
 ### 2. Run the install-safe benchmark suite
 
