@@ -344,7 +344,10 @@ jobs:
         # No --provenance: the attestation is signed from the OIDC identity, and
         # there is no OIDC identity in this mode. Passing it would fail the upload
         # rather than silently produce an unattributed tarball.
-        run: npm publish --access public --tag latest
+        # Token mode cannot truthfully carry an OIDC-built provenance claim.
+        # package.json sets provenance=true for trusted publishing, so explicitly
+        # override that metadata in this fallback to avoid misleading artifacts.
+        run: npm publish --access public --no-provenance --tag latest
 
       # The upload returning is not the version being readable. `npm publish`
       # completes when the registry's WRITE path accepts the tarball; the READ
