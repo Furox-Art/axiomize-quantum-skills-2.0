@@ -25,6 +25,8 @@ from axiomize.model_ir import (
     ProvenanceEvent,
 )
 
+from axiomize.safe_expression import sympy_expression, validate_expression
+
 _ALLOWED_FUNCTIONS = {
     "sin", "cos", "tan", "asin", "acos", "atan", "sinh", "cosh", "tanh",
     "exp", "log", "sqrt", "Abs", "Min", "Max", "Piecewise", "Heaviside",
@@ -234,8 +236,6 @@ def _validate_expression_syntax(expression: str, allowed_names: set[str]) -> Non
     function set is the shared one, which matches what this module used to
     carry (verified equal), so valid input behaves identically.
     """
-    from axiomize.safe_expression import validate_expression
-
     validate_expression(expression, allowed_names=set(allowed_names))
 
 
@@ -249,8 +249,6 @@ def _sympy_expression(expression: str, symbols: dict[str, Any]) -> Any:
     second, weaker grammar here.
     """
     _validate_expression_syntax(expression, set(symbols))
-    from axiomize.safe_expression import sympy_expression
-
     return sympy_expression(expression, symbols)
 
 
