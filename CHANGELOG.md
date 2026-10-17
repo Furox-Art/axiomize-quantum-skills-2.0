@@ -2,7 +2,32 @@
 
 All notable changes to Axiomize are documented here. Axiomize follows semantic versioning; release claims are tied to exact-wheel CI/release evidence.
 
+## [1.2.4] - 2026-10-13
+
+### Security
+
+- The engine core and the advanced-family engine parsed model expressions with
+  their own AST whitelist and then called `sp.sympify(expression, locals=...)`
+  — evaluator semantics, and without the shared complexity budgets. An
+  exponent bomb (`9**9**9**9`) or a deeply nested expression therefore reached
+  sympy's evaluator and became CPU/memory exhaustion, even though jax_tool was
+  already safe. Both paths now delegate to `axiomize.safe_expression`
+  (AST-walked, sympy's own exceptions disabled, budgets enforced). The approved
+  function set is unchanged (verified identical to the shared one).
+- `serve` no longer starts without authentication when the configured
+  `--auth-token-env` variable is set but empty: that used to fall through the
+  `or` chain and produced an unauthenticated server while the operator
+  believed auth was on.
+
+### Housekeeping
+
+- `package-lock.json` is back in sync with the package version (it said
+  `1.2.0` while the package was `1.2.3`; `npm ci` in CI reads it).
+- Docs that still named `1.2.1` as current (index, publishing checklist,
+  integrations, tutorial, SECURITY, attestation guard) now follow 1.2.4.
+
 ## [1.2.3] - 2026-10-12
+
 ### Housekeeping — audit hardening
 
 - Closes the findings of the full-repository audit: patched the concrete

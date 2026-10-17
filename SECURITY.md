@@ -71,14 +71,14 @@ Verify by hand:
 
 ```bash
 # npm: two bundles, including a full SLSA v1 build provenance statement
-curl -s https://registry.npmjs.org/-/npm/v1/attestations/axiomize-quantum-skills-2.0@1.2.1
+curl -s https://registry.npmjs.org/-/npm/v1/attestations/axiomize-quantum-skills-2.0@1.2.3
 
 # PyPI: one bundle per file, predicate https://docs.pypi.org/attestations/publish/v1
-curl -s https://pypi.org/integrity/axiomize-quantum-skills-2.0/1.2.1/axiomize_quantum_skills_2_0-1.2.1-py3-none-any.whl/provenance
+curl -s https://pypi.org/integrity/axiomize-quantum-skills-2.0/1.2.3/axiomize_quantum_skills_2_0-1.2.3-py3-none-any.whl/provenance
 ```
 
 PyPI serves attestations **per file**, so the path ends in `/<filename>/provenance`.
-`https://pypi.org/integrity/axiomize-quantum-skills-2.0/1.2.1/` is not an endpoint and
+`https://pypi.org/integrity/axiomize-quantum-skills-2.0/1.2.3/` is not an endpoint and
 returns `404`; that means "no such URL", not "no attestation".
 
 If you are triaging a report about a tampered artifact, the npm or PyPI attestation is

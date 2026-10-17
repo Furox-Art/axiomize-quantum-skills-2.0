@@ -199,7 +199,17 @@ def cmd_benchmark(_args: argparse.Namespace) -> int:
 def cmd_serve(args: argparse.Namespace) -> int:
     from axiomize.server import rest_server
 
-    token = args.auth_token or os.getenv(args.auth_token_env)
+    env_token = os.getenv(args.auth_token_env) if args.auth_token_env else None
+    token = args.auth_token or env_token
+    if args.auth_token is None and env_token == "":
+        # An intentionally-empty env var meant "turn auth off". Silently
+        # honoring that turns `serve` into an unauthenticated service on a
+        # host interface, so it fails loudly instead.
+        raise SystemExit(
+            f"{args.auth_token_env} is set but empty; the server would start "
+            "WITHOUT authentication. Set a non-empty token, pass --auth-token, "
+            "or unset the variable to run without auth on purpose."
+        )
     server = rest_server.start_server(
         args.host,
         args.port,

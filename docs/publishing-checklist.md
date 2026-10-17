@@ -14,7 +14,7 @@ community lists.
 | Import package | `axiomize` |
 | Skill folders | `skills/axiomize/`, `skills/quantum-reasoning/` |
 | License | MIT |
-| Current release | 1.2.1 |
+| Current release | 1.2.3 |
 
 **Do not link `Furox-Art/axiomize`.** That is a separate, related repository with its own
 release line. This package is the distribution `axiomize-quantum-skills-2.0`, and every
@@ -69,7 +69,7 @@ The npm tarball is published with `--provenance` under an explicit `--tag latest
 Sigstore attestations are attached, and both are readable without any tooling:
 
 ```bash
-curl -s https://registry.npmjs.org/-/npm/v1/attestations/axiomize-quantum-skills-2.0@1.2.1
+curl -s https://registry.npmjs.org/-/npm/v1/attestations/axiomize-quantum-skills-2.0@1.2.3
 ```
 
 That returns two bundles:
@@ -79,9 +79,9 @@ That returns two bundles:
 | `https://github.com/npm/attestation/tree/main/specs/publish/v0.1` | npm's own publish attestation |
 | `https://slsa.dev/provenance/v1` | full SLSA v1 build provenance |
 
-The npm SLSA statement carries these fields, read from the live `1.2.1` response:
+The npm SLSA statement carries these fields, read from the live `1.2.3` response:
 
-| Field | Value for 1.2.1 |
+| Field | Value for 1.2.3 |
 |---|---|
 | `buildDefinition.buildType` | `https://slsa-framework.github.io/github-actions-buildtypes/workflow/v1` |
 | `buildDefinition.externalParameters.workflow.path` | `.github/workflows/npm-publish.yml` |
@@ -98,22 +98,22 @@ publisher for this package is evidently already registered.
 Verify the digest independently:
 
 ```bash
-npm view axiomize-quantum-skills-2.0@1.2.1 dist.integrity
-curl -sLO "$(npm view axiomize-quantum-skills-2.0@1.2.1 dist.tarball)"
-sha512sum axiomize_quantum_skills_2_0-1.2.1.tgz
+npm view axiomize-quantum-skills-2.0@1.2.3 dist.integrity
+curl -sLO "$(npm view axiomize-quantum-skills-2.0@1.2.3 dist.tarball)"
+sha512sum axiomize_quantum_skills_2_0-1.2.3.tgz
 ```
 
-For `1.2.1` the registry `integrity` value, the recomputed tarball SHA-512, and the `sha512`
+For `1.2.3` the registry `integrity` value, the recomputed tarball SHA-512, and the `sha512`
 digest inside both attestations are the same value.
 
 Inspect the attestation without downloading the tarball:
 
 ```bash
 # what the attestations endpoint says
-curl -s https://registry.npmjs.org/-/npm/v1/attestations/axiomize-quantum-skills-2.0@1.2.1
+curl -s https://registry.npmjs.org/-/npm/v1/attestations/axiomize-quantum-skills-2.0@1.2.3
 # npm's own view of the same thing
 npm audit signatures --package=axiomize-quantum-skills-2.0 2>/dev/null || \
-  npm view axiomize-quantum-skills-2.0@1.2.1 dist.signatures
+  npm view axiomize-quantum-skills-2.0@1.2.3 dist.signatures
 ```
 
 `npm audit signatures` verifies the **transport** signature. It does not evaluate the
@@ -126,7 +126,7 @@ serves [PEP 740](https://peps.python.org/pep-0740/) attestations **per file**, s
 ends in `/<filename>/provenance`:
 
 ```bash
-curl -s https://pypi.org/integrity/axiomize-quantum-skills-2.0/1.2.1/axiomize_quantum_skills_2_0-1.2.1-py3-none-any.whl/provenance
+curl -s https://pypi.org/integrity/axiomize-quantum-skills-2.0/1.2.3/axiomize_quantum_skills_2_0-1.2.3-py3-none-any.whl/provenance
 ```
 
 The statement is in-toto v1 with predicate type
@@ -137,7 +137,7 @@ same file.
 
 ```bash
 # the digest the attestation must match
-python -c "import json,urllib.request;d=json.load(urllib.request.urlopen('https://pypi.org/pypi/axiomize-quantum-skills-2.0/1.2.1/json'));print(d['urls'][0]['digests']['sha256'])"
+python -c "import json,urllib.request;d=json.load(urllib.request.urlopen('https://pypi.org/pypi/axiomize-quantum-skills-2.0/1.2.3/json'));print(d['urls'][0]['digests']['sha256'])"
 ```
 
 Note that PyPI's predicate is a *publish* attestation, not SLSA: it records that the
@@ -149,11 +149,11 @@ npm's `buildType`, `resolvedDependencies` or `runDetails` fields.
 ```bash
 # 200 -- a real attestation
 curl -s -o /dev/null -w '%{http_code}\n' \
-  https://pypi.org/integrity/axiomize-quantum-skills-2.0/1.2.1/axiomize_quantum_skills_2_0-1.2.1-py3-none-any.whl/provenance
+  https://pypi.org/integrity/axiomize-quantum-skills-2.0/1.2.3/axiomize_quantum_skills_2_0-1.2.3-py3-none-any.whl/provenance
 
 # 404 -- NOT an endpoint. Means "no such URL", not "no attestation".
 curl -s -o /dev/null -w '%{http_code}\n' \
-  https://pypi.org/integrity/axiomize-quantum-skills-2.0/1.2.1/
+  https://pypi.org/integrity/axiomize-quantum-skills-2.0/1.2.3/
 ```
 
 An earlier revision of this page claimed PyPI had "no public per-artifact attestation API
@@ -208,7 +208,7 @@ The workflow's `use_token_fallback` input publishes with `NPM_TOKEN` and **witho
 `--provenance`, because a Sigstore attestation is signed from the OIDC identity and a token
 has none. If you are reading this page to decide whether a given tarball is attested, check
 the endpoint above rather than assuming: `2.0.0` returns HTTP 404 (no attestation),
-`1.2.0` and `1.2.1` each return two.
+`1.2.0` and `1.2.3` each return two.
 
 ## Where to submit
 
@@ -223,7 +223,7 @@ the endpoint above rather than assuming: `2.0.0` returns HTTP 404 (no attestatio
 ## Before submitting — all verified
 
 - [x] CI green on `main`
-- [x] Latest GitHub release matches the PyPI version (1.2.1)
+- [x] Latest GitHub release matches the PyPI version (1.2.3)
 - [x] `pip install` + `axiomize tools` + `axiomize benchmark` verified from a clean venv
 - [x] Documentation site builds and is live
 - [x] Every README and docs link returns HTTP 200
@@ -241,7 +241,7 @@ These would be untrue, so leave them out:
 | "N independent agents produced these reports" | The stored reports are maintainer-authored |
 | "supported by Claude Code / Cursor / OpenCode" | Only MCP protocol conformance was tested here |
 | a stars, forks, or downloads figure | Do not hardcode; link the package page instead |
-| "npm package ready to use" | npm 1.2.1 is published and attested, but it is only a launcher shim for the Python CLI. Say "PyPI 1.2.1 is the install; npm 1.2.1 is a Node launcher for it" |
+| "npm package ready to use" | npm 1.2.3 is published and attested, but it is only a launcher shim for the Python CLI. Say "PyPI 1.2.3 is the install; npm 1.2.3 is a Node launcher for it" |
 
 ## Keeping this honest
 
