@@ -14,6 +14,7 @@ updates:
   # rather than as a reviewable dependency PR.
   - package-ecosystem: "pip"
     directory: "/"
+    open-pull-requests-limit: 2
     schedule:
       interval: "weekly"
       day: "monday"
@@ -61,6 +62,7 @@ updates:
 
   - package-ecosystem: "github-actions"
     directory: "/"
+    open-pull-requests-limit: 2
     schedule:
       interval: "weekly"
       day: "monday"
@@ -96,4 +98,4 @@ updates:
     # The package has no runtime dependencies, so this only ever sees
     # devDependencies; it is declared so that adding one does not silently go
     # unwatched.
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 2
