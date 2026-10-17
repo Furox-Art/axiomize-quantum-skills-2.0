@@ -95,6 +95,38 @@ def _constant_number(node: ast.AST) -> float | None:
     if isinstance(current, ast.UnaryOp) and isinstance(current.op, (ast.UAdd, ast.USub)):
         sign = -1.0 if isinstance(current.op, ast.USub) else 1.0
         current = current.operand
+    if isinstance(current, ast.BinOp) and isinstance(
+        current.op, (ast.Add, ast.Sub, ast.Mult, ast.Div, ast.Pow, ast.Mod)
+    ):
+        # Evaluate constant exponent arithmetic *within the existing budget*
+        # before SymPy sees it. Previously nested powers such as 9**9**9**9
+        # bypassed the literal-only exponent check and exhausted CI resources.
+        left = _constant_number(current.left)
+        right = _constant_number(current.right)
+        if left is None or right is None:
+            return None
+        try:
+            if isinstance(current.op, ast.Add):
+                value = left + right
+            elif isinstance(current.op, ast.Sub):
+                value = left - right
+            elif isinstance(current.op, ast.Mult):
+                value = left * right
+            elif isinstance(current.op, ast.Div):
+                value = left / right
+            elif isinstance(current.op, ast.Mod):
+                value = math.fmod(left, right)
+            else:
+                # math.pow uses bounded floating-point operations instead of
+                # materialising astronomically large Python integers.
+                value = math.pow(left, right)
+        except (OverflowError, ValueError, ZeroDivisionError) as exc:
+            raise ValueError("invalid or unbounded constant exponent") from exc
+        if not math.isfinite(value) or abs(value) > MAX_ABS_CONSTANT_EXPONENT:
+            raise ValueError(
+                f"constant exponent magnitude exceeds hard limit {MAX_ABS_CONSTANT_EXPONENT:g}"
+            )
+        return sign * value
     if not isinstance(current, ast.Constant) or isinstance(current.value, bool):
         return None
     if not isinstance(current.value, (int, float)):

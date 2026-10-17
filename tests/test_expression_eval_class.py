@@ -20,6 +20,19 @@ def test_engine_core_power_bomb_is_rejected() -> None:
         _sympy_expression("9**9**9**9", {"x": sympy.Symbol("x")})
 
 
+def test_nested_constant_exponent_cannot_bypass_shared_budget() -> None:
+    from axiomize.safe_expression import validate_expression
+
+    for expression in ("9**9**9**9", "x**(9**9 + 0)", "x**(2**10)"):
+        with pytest.raises(ValueError):
+            validate_expression(expression, allowed_names={"x"})
+
+    # Small nested constant exponents and symbolic powers remain valid.
+    validate_expression("x**(2**3)", allowed_names={"x"})
+    validate_expression("(x**2)**3", allowed_names={"x"})
+    validate_expression("x**y", allowed_names={"x", "y"})
+
+
 def test_engine_core_import_attempt_is_rejected() -> None:
     from axiomize.general_engine_core import _sympy_expression
     with pytest.raises(ValueError):
