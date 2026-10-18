@@ -12,8 +12,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-import benchmark_runner
-import csv_check
+from axiomize.tools import benchmark_runner, csv_check
 
 
 def _cases_file(root: Path, records):
