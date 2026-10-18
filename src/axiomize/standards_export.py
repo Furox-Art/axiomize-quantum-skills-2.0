@@ -256,12 +256,32 @@ def export_cellml_2(model: ModelIR) -> dict[str, Any]:
             for child in list(rhs):
                 apply_eq.append(child)
         else:
-            ci = ET.SubElement(apply_eq, f"{{{_MATHML_NS}}}ci"); ci.text = _sid(equation.target)
+            # An algebraic residual denotes f(x) = 0; it has no target
+            # variable. Never invent a CI called "model" for the empty target.
+            if model.family == ModelFamily.ALGEBRAIC and equation.kind == "residual":
+                zero = ET.SubElement(apply_eq, f"{{{_MATHML_NS}}}cn")
+                zero.text = "0"
+            else:
+                ci = ET.SubElement(apply_eq, f"{{{_MATHML_NS}}}ci")
+                ci.text = _sid(equation.target)
             rhs = _math_element(equation.expression, symbols)
             for child in list(rhs):
                 apply_eq.append(child)
 
+    # CellML 2 requires explicit units on every MathML numeric literal.
+    # Source numeric literals are dimensionless; never infer a physical unit.
+    for value in math.iter(f"{{{_MATHML_NS}}}cn"):
+        value.set(f"{{{_CELLML_NS}}}units", "dimensionless")
+
     content = _xml_text(root)
+    # libCellML parses MathML within the component as a standalone fragment.
+    # A prefix inherited only from the CellML root is unavailable there, so
+    # emit an unprefixed MathML subtree with its own default declaration.
+    content = content.replace(
+        "<m:math>", f'<math xmlns="{_MATHML_NS}" xmlns:cellml="{_CELLML_NS}">'
+    ).replace("</m:math>", "</math>").replace("<m:", "<").replace("</m:", "</")
+    content = content.replace("<cn units=","<cn cellml:units=")
+    ET.fromstring(content)  # prove the normalized document remains XML
     validation = _validate_cellml(content)
     return {"status": "PASS" if validation.get("schema_validation") != "FAIL" else "FAIL",
             "format": "cellml-2.0", "standard": "CellML 2.0", "content": content,
@@ -278,19 +298,27 @@ def _validate_cellml(content: str) -> dict[str, Any]:
     try:
         import libcellml  # type: ignore
 
+        # Native libCellML separates parsing from semantic model validation.
+        parser = libcellml.Parser()
+        parsed = parser.parseModel(content)
         validator = libcellml.Validator()
-        validator.parse_text(content)
-        validator.validate()
-        errors = int(validator.error_count())
-        if errors == 0:
-            validation = {"xml_well_formed": True, "schema_validation": "PASS", "libcellml_errors": 0}
-        else:
-            validation = {
-                "xml_well_formed": True,
-                "schema_validation": "FAIL",
-                "libcellml_errors": errors,
-                "messages": [str(validator.error(i)) for i in range(min(errors, 20))],
-            }
+        if parsed is not None:
+            validator.validateModel(parsed)
+        parse_errors = int(parser.issueCount())
+        validate_errors = int(validator.issueCount())
+        errors = parse_errors + validate_errors
+        validation = {
+            "xml_well_formed": True,
+            "schema_validation": "PASS" if errors == 0 and parsed is not None else "FAIL",
+            "libcellml_errors": errors,
+        }
+        if errors:
+            validation["messages"] = [
+                parser.issue(i).description() for i in range(min(parse_errors, 20))
+            ] + [
+                validator.issue(i).description()
+                for i in range(min(validate_errors, max(0, 20 - parse_errors)))
+            ]
     except ImportError:
         pass
     return validation

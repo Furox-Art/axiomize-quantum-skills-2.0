@@ -36,9 +36,15 @@ def test_cellml_export_includes_schema_validation_status() -> None:
     assert cellml["validation"]["schema_validation"] in ("PASS", "NOT_RUN", "FAIL")
 
 
-def test_cellml_validation_graceful_without_libcellml() -> None:
+def test_cellml_invalid_document_cannot_claim_a_native_schema_pass() -> None:
+    import importlib.util
+
     from axiomize.standards_export import _validate_cellml
 
     result = _validate_cellml("<invalid-cellml></invalid-cellml>")
     assert result["xml_well_formed"] is True
-    assert result["schema_validation"] in ("PASS", "NOT_RUN")
+    if importlib.util.find_spec("libcellml") is not None:
+        assert result["schema_validation"] == "FAIL"
+        assert result["libcellml_errors"] >= 1
+    else:
+        assert result["schema_validation"] == "NOT_RUN"
