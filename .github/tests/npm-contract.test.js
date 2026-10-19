@@ -432,18 +432,19 @@ test('workflow runs Node 24 so npm can emit provenance', () => {
   // attestation it asks for.
   assert.ok(
     major >= 24,
-    `node-version must be at least 24 for npm >= 11.5.1 provenance support, got ${major}`,
+    `node-version must be at least 24 for npm 11 provenance support, got ${major}`,
   );
 });
 
-test('the provenance npm version gate compares numerically, not by regex', () => {
+test('the OIDC dist-tag npm version gate compares numerically, not by regex', () => {
   const source = read(PUBLISH_WORKFLOW);
-  const step = stepBody(source, 'Require npm >= 11.5.1 for provenance');
+  const step = stepBody(source, 'Require npm >= 11.21.0 for OIDC trusted publishing with --tag');
 
   // A regex like /^11\.(5[1-9]|[6-9][0-9])\.|^1[2-9]\./ is wrong twice over:
   // it rejects 11.5.1 itself (the group demands "51".."59" with no separator) and
-  // it rejects 11.19.0 (a two-digit minor cannot match [6-9][0-9]). Node 24 ships
-  // npm 11.19.0, so that gate would fail a supported toolchain.
+  // it rejects 11.19.0 (a two-digit minor cannot match [6-9][0-9]), which is
+  // exactly the npm bundled with Node 24 and the version the install step
+  // upgrades away from before this gate runs.
   assert.doesNotMatch(
     step,
     /\^\\d|5\[1-9\]|\[6-9\]\[0-9\]/,
@@ -454,10 +455,10 @@ test('the provenance npm version gate compares numerically, not by regex', () =>
     /process\.argv\[1\]/,
     'the gate must read the running npm version as an argument, not by parsing a regex',
   );
-  assert.match(step, /11\.5\.1/, 'the required minimum must be stated');
+  assert.match(step, /11\.21\.0/, 'the required minimum must be stated');
 
-  // Prove the comparison the gate implements accepts the version Node 24 ships
-  // and rejects the one Node 22 ships, which is the whole point.
+  // Prove the comparison the gate implements accepts the version the install
+  // step puts on PATH and rejects the npm bundled with Node 24 and Node 22.
   const compare = (a, b) => {
     const parse = (v) => String(v).replace(/^v/, '').split('-')[0].split('.').map(Number);
     const pa = parse(a);
@@ -469,12 +470,12 @@ test('the provenance npm version gate compares numerically, not by regex', () =>
     }
     return 0;
   };
-  assert.ok(compare('11.19.0', '11.5.1') > 0, '11.19.0 must satisfy the >= 11.5.1 gate');
-  assert.strictEqual(compare('11.5.1', '11.5.1'), 0, 'the gate must be inclusive at 11.5.1');
-  assert.ok(compare('10.9.9', '11.5.1') < 0, 'npm 10.9.9 must fail the gate');
-  assert.ok(compare('12.0.0', '11.5.1') > 0, 'npm 12 must pass the gate');
-  assert.ok(compare('13.1.2', '11.5.1') > 0, 'a two-digit major must pass the gate');
-  assert.ok(compare('11.100.0', '11.5.1') > 0, 'a two-digit minor must pass the gate');
+  assert.strictEqual(compare('11.21.0', '11.21.0'), 0, 'the gate must be inclusive at 11.21.0');
+  assert.ok(compare('11.19.0', '11.21.0') < 0, 'the npm bundled with Node 24 must fail the gate');
+  assert.ok(compare('10.9.9', '11.21.0') < 0, 'npm 10.9.9 must fail the gate');
+  assert.ok(compare('12.0.0', '11.21.0') > 0, 'npm 12 must pass the gate');
+  assert.ok(compare('13.1.2', '11.21.0') > 0, 'a two-digit major must pass the gate');
+  assert.ok(compare('11.100.0', '11.21.0') > 0, 'a two-digit minor must pass the gate');
 });
 
 test('both publish modes keep the pre-publish gates', () => {
