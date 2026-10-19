@@ -48,7 +48,7 @@ scipy>=1.10
 # resolved but the package forbids. The engine is verified against 4.15.4.0,
 # the version this range resolves to on CI, and against 5.3.1.0 on the
 # platforms where 5.x installs cleanly.
-z3-solver>=4.12,<5
+z3-solver>=4.12,<6
 sympy>=1.12
 networkx>=3.0
 statsmodels>=0.14
