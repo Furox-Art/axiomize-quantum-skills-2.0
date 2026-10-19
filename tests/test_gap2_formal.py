@@ -42,7 +42,13 @@ def test_availability_matches_reality():
 def test_true_theorem_proved_by_real_lean():
     adapter = LeanAdapter()
     if not LeanAdapter.availability().available:
-        pytest.skip("lean toolchain yok; TOOL_UNAVAILABLE yolu gecerli")
+        # Scientific evidence is unavailable, not disproved or silently skipped.
+        # Positive Lean verification is exercised when the pinned toolchain is present.
+        unavailable = adapter.execute({"theorem": TRUE_THEOREM, "allow_unsafe_execution": True})
+        assert unavailable["status"] == ValidationStatus.TOOL_UNAVAILABLE.value
+        assert unavailable["proved"] is False
+        assert unavailable.get("proof") is None
+        return
     result = adapter.execute({"theorem": TRUE_THEOREM, "allow_unsafe_execution": True})
     assert result["status"] == ValidationStatus.PASS.value
     assert result["proved"] is True
@@ -51,7 +57,13 @@ def test_true_theorem_proved_by_real_lean():
 def test_false_theorem_rejected_by_real_lean():
     adapter = LeanAdapter()
     if not LeanAdapter.availability().available:
-        pytest.skip("lean toolchain yok; TOOL_UNAVAILABLE yolu gecerli")
+        # Scientific evidence is unavailable, not disproved or silently skipped.
+        # Positive Lean verification is exercised when the pinned toolchain is present.
+        unavailable = adapter.execute({"theorem": FALSE_THEOREM, "allow_unsafe_execution": True})
+        assert unavailable["status"] == ValidationStatus.TOOL_UNAVAILABLE.value
+        assert unavailable["proved"] is False
+        assert unavailable.get("proof") is None
+        return
     result = adapter.execute({"theorem": FALSE_THEOREM, "allow_unsafe_execution": True})
     assert result["status"] == ValidationStatus.FAIL.value
     assert result["proved"] is False
