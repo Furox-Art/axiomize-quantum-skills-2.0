@@ -124,9 +124,11 @@ jobs:
           registry-url: "https://registry.npmjs.org"
 
       # Trusted publishing with an explicit dist-tag (`--tag latest` below) needs
-      # npm >= 11.21.0; the npm bundled with Node 24 is older (11.19.0).
+      # npm >= 11.21.0; the npm bundled with Node 24 is older (11.19.0). Stay on
+      # npm 11: npm 12 changed the `npm pack --json` shape that the tarball
+      # assertions below (and the contract test) parse as an array.
       - name: Install an OIDC-capable npm
-        run: npm install --global "npm@>=11.21.0"
+        run: npm install --global "npm@^11.21.0"
 
       # Resolve which credential this run uses, before anything can publish.
       # `inputs.*` is empty on a push event, so the comparison is written to treat
