@@ -436,6 +436,16 @@ test('workflow runs Node 24 so npm can emit provenance', () => {
   );
 });
 
+test('the npm upgrade stays on the 11.21.x line while pack JSON is parsed as an array', () => {
+  const source = read(PUBLISH_WORKFLOW);
+  const step = stepBody(source, 'Install an OIDC-capable npm');
+  assert.match(
+    step,
+    /npm@\^11\.21\.0/,
+    'npm 12 changes the `npm pack --json` shape; keep the upgrade on npm 11 until parsing handles both',
+  );
+});
+
 test('the OIDC dist-tag npm version gate compares numerically, not by regex', () => {
   const source = read(PUBLISH_WORKFLOW);
   const step = stepBody(source, 'Require npm >= 11.21.0 for OIDC trusted publishing with --tag');
