@@ -8,10 +8,9 @@ updates:
   # That was wrong on both counts. pyproject.toml declares 11 runtime
   # dependencies (numpy, scipy, sympy, networkx, statsmodels, matplotlib,
   # z3-solver, control, cvxpy, casadi and PyYAML), and requirements-test.txt is
-  # the file CI installs
-  # verbatim. Nothing was watching either, so a security-relevant release in
-  # z3-solver or casadi surfaced only when pip-audit happened to fail a build
-  # rather than as a reviewable dependency PR.
+  # the file CI installs verbatim. Nothing was watching either, so a
+  # security-relevant release in z3-solver or casadi surfaced only when
+  # pip-audit happened to fail a build rather than as a reviewable dependency PR.
   - package-ecosystem: "pip"
     directory: "/"
     open-pull-requests-limit: 2
@@ -29,12 +28,12 @@ updates:
     # repository and would arrive as noise; pip-audit is the backstop for those.
     allow:
       - dependency-type: "direct"
-    # Cap mirrored from pyproject.toml, where the reasoning is recorded: the
-    # z3-solver 5.3.1.0 macOS wheel's WHEEL metadata tag disagrees with its own
-    # filename, so `pip check` fails the macOS arm64 wheel-cli job with
-    # "z3-solver 5.3.1.0 is not supported on this platform". Without this,
-    # Dependabot re-proposes 5.x and no PR can go green; drop the rule once an
-    # upstream 5.x release declares a tag pip accepts.
+    # Mirrors the `<5` cap in pyproject.toml; the reasoning is recorded in
+    # requirements-test.txt. The z3-solver 5.3.1.0 macOS wheel's WHEEL metadata
+    # tag disagrees with its own filename, so `pip check` fails the macOS arm64
+    # wheel-cli job with "z3-solver 5.3.1.0 is not supported on this platform".
+    # Without this, Dependabot re-proposes 5.x and no PR can go green; drop the
+    # rule once an upstream 5.x release declares a tag pip accepts.
     ignore:
       - dependency-name: "z3-solver"
         versions:

@@ -227,7 +227,7 @@ The published site carries 20 pages; the `mkdocs.yml` nav is the source of truth
 | Group | Pages |
 |---|---|
 | Home | [index](docs/index.md) |
-| Workflow | [workflow](docs/index.md) · [adaptive](docs/adaptive-workflow.md) · [rigor](docs/rigor.md) · [archetypes](docs/archetypes.md) |
+| Workflow | [workflow](docs/index.md) · [adaptive](skills/axiomize/adaptive-workflow.md) · [rigor](skills/axiomize/rigor.md) · [archetypes](skills/axiomize/archetypes.md) |
 | Guides | [tutorial](docs/tutorial.md) · [worked examples](docs/worked-examples.md) · [example gallery](docs/example-gallery.md) · [integrations](docs/integrations.md) · [portable export](docs/portable-export.md) |
 | Reference | [benchmark results](docs/benchmark-results.md) |
 | Security | [overview](docs/security.md) · [versioning](docs/security-versioning.md) · [CI contract](docs/security-ci-contract.md) · [release checklist](docs/security-release-checklist.md) · [maintenance](docs/security-maintenance.md) · [non-goals](docs/security-non-goals.md) · [1.11.2 audit](docs/security-audit-1.11.2.md) |
