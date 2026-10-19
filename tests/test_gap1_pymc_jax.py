@@ -53,7 +53,13 @@ def test_pymc_execute_never_fakes():
 
 def test_pymc_real_fit_when_installed():
     if not _spec_present("pymc"):
-        pytest.skip("pymc not installed; TOOL_UNAVAILABLE path is valid")
+        from axiomize.bayesian.pymc_tool import PyMCTool
+
+        # A missing Bayesian runtime must refuse a valid inference request.
+        with pytest.raises(RuntimeError, match="TOOL_UNAVAILABLE"):
+            PyMCTool().execute({"model": "normal-mean", "y": [1.0, 2.0, 3.0],
+                                "draws": 300, "tune": 300, "seed": 1})
+        return
     import numpy as np
     from axiomize.bayesian.pymc_tool import PyMCTool
 
@@ -66,7 +72,12 @@ def test_pymc_real_fit_when_installed():
 
 def test_jax_real_grad_when_installed():
     if not _spec_present("jax"):
-        pytest.skip("jax not installed")
+        from axiomize.tools.autodiff.jax_tool import JAXTool
+
+        # No fabricated derivative when the real autodiff runtime is absent.
+        with pytest.raises(RuntimeError, match="TOOL_UNAVAILABLE"):
+            JAXTool().execute({"operation": "grad", "x": 3.0})
+        return
     from axiomize.tools.autodiff.jax_tool import JAXTool
 
     out = JAXTool().execute({"operation": "grad", "x": 3.0})
@@ -98,7 +109,12 @@ def test_jax_execute_never_fakes_without_jax():
 
 def test_jax_grad_of_square_is_correct():
     if not _spec_present("jax"):
-        pytest.skip("jax not installed")
+        from axiomize.tools.autodiff.jax_tool import JAXTool
+
+        # No fabricated derivative when the real autodiff runtime is absent.
+        with pytest.raises(RuntimeError, match="TOOL_UNAVAILABLE"):
+            JAXTool().execute({"operation": "grad", "x": 3.0})
+        return
     from axiomize.tools.autodiff.jax_tool import JAXTool
 
     out = JAXTool().execute({"operation": "grad", "x": 3.0})
@@ -109,7 +125,12 @@ def test_jax_grad_of_square_is_correct():
 
 def test_jax_hessian_of_square_is_two():
     if not _spec_present("jax"):
-        pytest.skip("jax not installed")
+        from axiomize.tools.autodiff.jax_tool import JAXTool
+
+        # No fabricated derivative when the real autodiff runtime is absent.
+        with pytest.raises(RuntimeError, match="TOOL_UNAVAILABLE"):
+            JAXTool().execute({"operation": "hessian", "x": 3.0})
+        return
     from axiomize.tools.autodiff.jax_tool import JAXTool
 
     out = JAXTool().execute({"operation": "hessian", "x": 3.0})
@@ -119,7 +140,12 @@ def test_jax_hessian_of_square_is_two():
 
 def test_jax_grad_array_input():
     if not _spec_present("jax"):
-        pytest.skip("jax not installed")
+        from axiomize.tools.autodiff.jax_tool import JAXTool
+
+        # No fabricated derivative when the real autodiff runtime is absent.
+        with pytest.raises(RuntimeError, match="TOOL_UNAVAILABLE"):
+            JAXTool().execute({"operation": "grad", "x": [1.0, 2.0, 3.0]})
+        return
     import numpy as np
     from axiomize.tools.autodiff.jax_tool import JAXTool
 
@@ -130,7 +156,12 @@ def test_jax_grad_array_input():
 
 def test_jax_grad_custom_function():
     if not _spec_present("jax"):
-        pytest.skip("jax not installed")
+        from axiomize.tools.autodiff.jax_tool import JAXTool
+
+        # No fabricated derivative when the real autodiff runtime is absent.
+        with pytest.raises(RuntimeError, match="TOOL_UNAVAILABLE"):
+            JAXTool().execute({"operation": "grad", "x": 0.0, "function": "sin(x)"})
+        return
     from axiomize.tools.autodiff.jax_tool import JAXTool
 
     out = JAXTool().execute({"operation": "grad", "x": 0.0, "function": "sin(x)"})

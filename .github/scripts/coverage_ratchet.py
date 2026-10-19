@@ -92,8 +92,11 @@ def read_base_floor() -> float | None:
 
 def measured_total() -> float | None:
     """Run the suite and return the measured branch-coverage percentage."""
+    # A coverage percentage never compensates for an unevaluated test.
+    junit = ROOT / "pytest-coverage.xml"
     proc = subprocess.run(
-        [sys.executable, "-m", "pytest", "tests/", "-q", "--cov", "--cov-report="],
+        [sys.executable, "-m", "pytest", "tests/", "-q", "--cov", "--cov-report=",
+         f"--junitxml={junit}"],
         cwd=str(ROOT),
         check=False,
         env={**os.environ, "PYTEST_ADDOPTS": ""},
@@ -102,6 +105,13 @@ def measured_total() -> float | None:
         # pytest already printed why; a collection error or a failing test is
         # not a coverage verdict and must not be silently treated as one.
         return None
+    from assert_no_skips import verify_report
+
+    skip_status, skip_message = verify_report(junit)
+    print(skip_message, file=sys.stderr if skip_status else sys.stdout)
+    if skip_status:
+        return None
+
     report = subprocess.run(
         [sys.executable, "-m", "coverage", "report", "--precision=2"],
         cwd=str(ROOT),

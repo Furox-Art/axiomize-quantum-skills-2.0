@@ -320,19 +320,36 @@ def test_compare_runs_service_confines_traversal(tmp_path: Path, run_id: str) ->
         compare_runs_service({"before_dir": run_id, "after_dir": run_id}, run_root=root)
 
 
-@pytest.mark.skipif(os.name != "nt", reason="backslash is a separator only on Windows")
 def test_compare_runs_service_confines_windows_separator_traversal(tmp_path: Path) -> None:
+    """Verify the real host semantics without skipping either OS.
+
+    On Windows the backslash is a parent traversal and MUST be refused.
+    On POSIX it is a literal, so a run of that name inside the root MUST
+    remain accessible while a separate Windows path-model verifies that the
+    same bytes would be a traversal on Windows. Real Windows CI exercises the
+    security refusal with the native filesystem.
+    """
+    from pathlib import PureWindowsPath
+
     from axiomize.application.services import compare_runs_service
+    from axiomize.runs.state import RunState
 
     root = tmp_path / "root"
     root.mkdir()
-    with pytest.raises(ValueError, match="escapes the configured run root"):
-        compare_runs_service(
-            {"before_dir": "..\\outside", "after_dir": "..\\outside"}, run_root=root
-        )
+    raw_id = "..\\outside"
+    assert PureWindowsPath(raw_id).parts == ("..", "outside")
+    if os.name == "nt":
+        with pytest.raises(ValueError, match="escapes the configured run root"):
+            compare_runs_service({"before_dir": raw_id, "after_dir": raw_id}, run_root=root)
+    else:
+        # The name is one ordinary POSIX filename; actual service resolution
+        # must keep it *inside* root, not reinterpret the Windows separator.
+        RunState(problem_definition="POSIX literal backslash").save(root / raw_id)
+        result = compare_runs_service({"before_dir": raw_id, "after_dir": raw_id}, run_root=root)
+        assert result["same_input_hash"] is True
+        assert result["same_results"] is True
 
 
-@pytest.mark.skipif(os.name == "nt", reason="POSIX treats a backslash as an ordinary filename character")
 def test_posix_backslash_is_confined_as_a_filename_not_a_traversal(tmp_path: Path) -> None:
     """On POSIX ``..\\outside`` is one filename, not a parent reference.
 
@@ -343,11 +360,16 @@ def test_posix_backslash_is_confined_as_a_filename_not_a_traversal(tmp_path: Pat
 
     root = tmp_path / "root"
     root.mkdir()
-    resolved = resolve_run_directory(root, "..\\outside")
-    assert resolved.parent == root
-    assert resolved.name == "..\\outside"
-    with pytest.raises(ValueError, match="run.json"):
-        RunState.load(resolved)
+    if os.name == "nt":
+        # Native Windows must *not* treat the parent separator as a filename.
+        with pytest.raises(ValueError, match="escapes the configured run root"):
+            resolve_run_directory(root, "..\\outside")
+    else:
+        resolved = resolve_run_directory(root, "..\\outside")
+        assert resolved.parent == root
+        assert resolved.name == "..\\outside"
+        with pytest.raises(ValueError, match="run.json"):
+            RunState.load(resolved)
 
 
 def test_compare_runs_service_confines_nul_bytes(tmp_path: Path) -> None:
