@@ -5,10 +5,10 @@ updates:
   # repo, the two runtime packages the validators need are installed inline by
   # the CI step, so there is nothing for the pip ecosystem to watch."
   #
-  # That was wrong on both counts. pyproject.toml declares 12 runtime
+  # That was wrong on both counts. pyproject.toml declares 11 runtime
   # dependencies (numpy, scipy, sympy, networkx, statsmodels, matplotlib,
-  # z3-solver, control, cvxpy, casadi, PyYAML and the platform-markered second
-  # z3-solver entry), and requirements-test.txt is the file CI installs
+  # z3-solver, control, cvxpy, casadi and PyYAML), and requirements-test.txt is
+  # the file CI installs
   # verbatim. Nothing was watching either, so a security-relevant release in
   # z3-solver or casadi surfaced only when pip-audit happened to fail a build
   # rather than as a reviewable dependency PR.
@@ -29,8 +29,18 @@ updates:
     # repository and would arrive as noise; pip-audit is the backstop for those.
     allow:
       - dependency-type: "direct"
-    # One PR per family rather than one per package, so reviewing twelve version
-    # bumps does not require twelve merges. Runtime packages stay in their own
+    # Cap mirrored from pyproject.toml, where the reasoning is recorded: the
+    # z3-solver 5.3.1.0 macOS wheel's WHEEL metadata tag disagrees with its own
+    # filename, so `pip check` fails the macOS arm64 wheel-cli job with
+    # "z3-solver 5.3.1.0 is not supported on this platform". Without this,
+    # Dependabot re-proposes 5.x and no PR can go green; drop the rule once an
+    # upstream 5.x release declares a tag pip accepts.
+    ignore:
+      - dependency-name: "z3-solver"
+        versions:
+          - ">=5.0.0"
+    # One PR per family rather than one per package, so reviewing eleven version
+    # bumps does not require eleven merges. Runtime packages stay in their own
     # group so a numpy bump is never bundled with a test-tooling bump.
     groups:
       runtime:
