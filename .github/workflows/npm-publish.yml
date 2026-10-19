@@ -123,6 +123,11 @@ jobs:
           node-version: "24"
           registry-url: "https://registry.npmjs.org"
 
+      # Trusted publishing with an explicit dist-tag (`--tag latest` below) needs
+      # npm >= 11.21.0; the npm bundled with Node 24 is older (11.19.0).
+      - name: Install an OIDC-capable npm
+        run: npm install --global "npm@>=11.21.0"
+
       # Resolve which credential this run uses, before anything can publish.
       # `inputs.*` is empty on a push event, so the comparison is written to treat
       # an absent input as false rather than as a non-empty string, which is what
@@ -273,12 +278,13 @@ jobs:
           fi
           echo "tarball contents match the allowlist exactly (6 files)"
 
-      # Provenance needs npm >= 11.5.1. Compared numerically rather than with a
-      # regex: `^11\.(5[1-9]|[6-9][0-9])\.` reads 11.5.1 as failing (the group
-      # demands "51".."59" with no separator, so 11.5.1 never matches) and
-      # 11.19.0 as failing too, because `[6-9][0-9]` cannot span a two-digit
-      # minor. It rejects the version node 24 actually ships.
-      - name: Require npm >= 11.5.1 for provenance
+      # Trusted publishing with an explicit dist-tag needs npm >= 11.21.0; older
+      # npm rejects the OIDC publish with a misleading E404. Compared numerically
+      # rather than with a regex: `^11\.(5[1-9]|[6-9][0-9])\.` reads 11.5.1 as
+      # failing (the group demands "51".."59" with no separator, so 11.5.1 never
+      # matches) and 11.19.0 as failing too, because `[6-9][0-9]` cannot span a
+      # two-digit minor. It rejects the version node 24 actually ships.
+      - name: Require npm >= 11.21.0 for OIDC trusted publishing with --tag
         if: ${{ steps.gate.outputs.skip != 'true' && steps.mode.outputs.mode == 'oidc' }}
         shell: bash
         run: |
@@ -297,11 +303,11 @@ jobs:
             };
             const have = process.argv[1], need = process.argv[2];
             if (compare(have, need) < 0) {
-              console.error('::error::npm ' + have + ' cannot publish with --provenance; ' + need + ' or newer is required.');
+              console.error('::error::npm ' + have + ' cannot publish with OIDC trusted publishing and --tag; ' + need + ' or newer is required.');
               process.exit(1);
             }
-            console.log('npm ' + have + ' satisfies the >= ' + need + ' provenance requirement');
-          " "${npm_version}" "11.5.1"
+            console.log('npm ' + have + ' satisfies the >= ' + need + ' OIDC dist-tag requirement');
+          " "${npm_version}" "11.21.0"
 
       # Fail closed when the selected mode has no usable credential, checked
       # before the upload rather than inferred from a failed publish. The OIDC
