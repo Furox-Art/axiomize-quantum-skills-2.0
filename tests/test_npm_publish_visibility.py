@@ -122,14 +122,13 @@ def test_absent_then_present_is_verified_not_misreported() -> None:
 def test_default_schedule_outlives_the_observed_propagation_delay() -> None:
     """The shipped schedule must cover the delay that broke the previous loop."""
     total = sum(DEFAULT_SCHEDULE)
+    # The old loop allowed six probes over 60 seconds and could not see a 95s
+    # propagation at all. That is the regression this replaces.
     assert total > 95, f"total wait {total}s does not cover the observed ~95s delay"
     assert len(DEFAULT_SCHEDULE) >= 12, "the loop must make at least 12 probes"
     assert DEFAULT_SCHEDULE == tuple(sorted(DEFAULT_SCHEDULE)), "backoff must be non-decreasing"
     assert DEFAULT_SCHEDULE[-1] > DEFAULT_SCHEDULE[0], "backoff must actually grow"
     assert total <= MAX_TOTAL_WAIT_SECONDS
-    # The old loop allowed six probes over 60 seconds and could not see a 95s
-    # propagation at all. That is the regression this replaces.
-    assert total > 60
 
 
 def test_a_present_read_on_the_first_attempt_never_sleeps() -> None:
