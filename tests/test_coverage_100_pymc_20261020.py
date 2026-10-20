@@ -8,7 +8,6 @@ import types
 import numpy as np
 import pytest
 
-from axiomize.bayesian import pymc_tool
 from axiomize.bayesian.pymc_tool import PyMCTool, _finite
 
 

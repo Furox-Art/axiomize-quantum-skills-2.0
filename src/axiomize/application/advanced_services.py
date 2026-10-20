@@ -7,7 +7,8 @@ from typing import Any
 
 from axiomize.advanced_diagnostics import bifurcation_scan, propagate_parameter_uncertainty, stopping_decision
 from axiomize.dimensional_engine import merge_dimension_checks
-from axiomize.general_engine import numerical_refinement, provenance_snapshot, validate_model
+from axiomize import general_engine
+from axiomize.general_engine import provenance_snapshot, validate_model
 from axiomize.limits import (
     MAX_ARRAY_ITEMS,
     MAX_POINTS,
@@ -112,7 +113,7 @@ def model_numerical_verification_service(payload: dict[str, Any]) -> dict[str, A
     tolerance = _finite(payload.get("tolerance", 1e-3), name="tolerance")
     if tolerance <= 0:
         raise ValueError("tolerance must be positive")
-    out = numerical_refinement(model, t_span=_span(payload), points=points,
+    out = general_engine.numerical_refinement(model, t_span=_span(payload), points=points,
                                parameter_overrides=payload.get("parameter_overrides"), seed=int(payload.get("seed", 0)),
                                tolerance=tolerance, approve_heavy=bool(payload.get("approve_heavy", False)))
     out["validation"] = validation

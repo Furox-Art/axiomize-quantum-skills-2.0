@@ -8,7 +8,6 @@ import pytest
 from scipy.special import gammaln
 
 from axiomize.bayesian.likelihoods import (
-    SUPPORTED_FAMILIES,
     log_likelihood,
     replicate,
     resolve_family,

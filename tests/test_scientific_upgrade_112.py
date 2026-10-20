@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-import numpy as np
 import pytest
 
-from axiomize.general_engine import export_model, numerical_refinement, simulate_model
+from axiomize import general_engine
+from axiomize.general_engine import simulate_model
 from axiomize.model_ir import ModelFamily, ModelIR
 from axiomize.scientific_stress import _models
 from axiomize.tools.pde.fenics_tool import FEniCSAdapter
@@ -17,7 +17,7 @@ def test_numerical_verification_contract_covers_every_family_and_is_approval_gat
     models=_models()
     assert set(models)==set(ModelFamily)
     for family,model in models.items():
-        result=numerical_refinement(model,t_span=(0,1),points=10,seed=4,approve_heavy=False)
+        result=general_engine.numerical_refinement(model,t_span=(0,1),points=10,seed=4,approve_heavy=False)
         assert result["status"]=="APPROVAL_REQUIRED", family.value
         assert result["uncertainty_separation"]["numerical"]
 
@@ -63,15 +63,15 @@ def test_bayesian_engine_2_surfaces_multichain_diagnostics_and_ppc() -> None:
 
 def test_extended_exports_are_real_and_family_scoped() -> None:
     models=_models()
-    mo=export_model(models[ModelFamily.ODE],format="modelica-3.6")
+    mo=general_engine.export_model(models[ModelFamily.ODE],format="modelica-3.6")
     assert mo["status"]=="PASS" and "der(x)" in mo["content"]
-    graph=export_model(models[ModelFamily.NETWORK],format="graphml")
+    graph=general_engine.export_model(models[ModelFamily.NETWORK],format="graphml")
     assert graph["status"]=="PASS" and "graphml" in graph["content"]
-    dot=export_model(models[ModelFamily.CAUSAL],format="causal-dot")
+    dot=general_engine.export_model(models[ModelFamily.CAUSAL],format="causal-dot")
     assert dot["status"]=="PASS" and dot["content"].startswith("digraph")
-    bundle=export_model(models[ModelFamily.ODE],format="portable-bundle-v1")
+    bundle=general_engine.export_model(models[ModelFamily.ODE],format="portable-bundle-v1")
     assert bundle["status"]=="PASS" and len(bundle["bundle"]["sha256"])==64
-    unsupported=export_model(models[ModelFamily.BAYESIAN],format="modelica-3.6")
+    unsupported=general_engine.export_model(models[ModelFamily.BAYESIAN],format="modelica-3.6")
     assert unsupported["status"]=="ADAPTER_REQUIRED"
 
 

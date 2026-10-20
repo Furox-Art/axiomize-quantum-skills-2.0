@@ -8,10 +8,10 @@ from typing import Any
 import numpy as np
 
 from axiomize.dimensional_engine import merge_dimension_checks
+from axiomize import general_engine
 from axiomize.general_engine import (
     build_execution_plan,
     discover_sparse_dynamics,
-    export_model,
     fit_ode_model,
     infer_domain,
     local_stability,
@@ -229,7 +229,7 @@ def model_export_service(payload: dict[str, Any]) -> dict[str, Any]:
     if approval is not None:
         return approval
     assert model is not None
-    return export_model(model, format=str(payload.get("format", "json")))
+    return general_engine.export_model(model, format=str(payload.get("format", "json")))
 
 
 def model_stability_service(payload: dict[str, Any]) -> dict[str, Any]:

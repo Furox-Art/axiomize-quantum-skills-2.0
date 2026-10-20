@@ -5,7 +5,6 @@ from __future__ import annotations
 import sys
 import types
 
-import pytest
 
 from axiomize.execution import sandbox
 

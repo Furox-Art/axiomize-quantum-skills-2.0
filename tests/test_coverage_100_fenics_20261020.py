@@ -13,7 +13,6 @@ import types
 import numpy as np
 import pytest
 
-from axiomize.tools.pde import fenics_tool
 from axiomize.tools.pde.fenics_tool import FEniCSAdapter, _finite
 
 
@@ -192,19 +191,13 @@ def _fake_fenics(*, solution=None, nonlinear_solution=None, l2=2.0):
     fe.TrialFunction = lambda V: _Expr()
     fe.Measure = lambda name: _Expr()
     fe.dx = _Expr()
-    fe.Constant = lambda value: _Expr(value)
+    fe.Constant = _Expr
     fe.DirichletBC = lambda V, value, marker: ("bc", value, marker)
     fe.dot = lambda a, b: _Expr()
     fe.grad = lambda a: _Expr()
 
     def make_function(V):
-        function = _Function(np.zeros(V.n))
-
-        def solve(eq, uh, bc):
-            uh._values = np.asarray(solution, dtype=float)
-            uh.x.array = np.asarray(solution, dtype=float)
-
-        return function
+        return _Function(np.zeros(V.n))
 
     fe.Function = make_function
 

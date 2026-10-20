@@ -1,7 +1,6 @@
 """Data transformations and scientific-run differences remain fully auditable."""
 from __future__ import annotations
 
-import json
 
 import numpy as np
 import pytest

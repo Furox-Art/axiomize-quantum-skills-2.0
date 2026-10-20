@@ -4,7 +4,7 @@ import json
 import xml.etree.ElementTree as ET
 
 from axiomize.application.general_services import model_export_service
-from axiomize.general_engine import export_model
+from axiomize import general_engine
 from axiomize.model_ir import ModelIR
 
 
@@ -30,7 +30,7 @@ def _decay() -> ModelIR:
 
 
 def test_explicit_sbml_l3v2_export_is_well_formed_and_versioned() -> None:
-    out = export_model(_decay(), format="sbml-l3v2")
+    out = general_engine.export_model(_decay(), format="sbml-l3v2")
     assert out["status"] == "PASS"
     assert out["standard"] == "SBML Level 3 Version 2 Core"
     root = ET.fromstring(out["content"].split("\n", 1)[1])
@@ -41,7 +41,7 @@ def test_explicit_sbml_l3v2_export_is_well_formed_and_versioned() -> None:
 
 
 def test_explicit_cellml_2_export_preserves_supported_units() -> None:
-    out = export_model(_decay(), format="cellml-2.0")
+    out = general_engine.export_model(_decay(), format="cellml-2.0")
     assert out["status"] == "PASS"
     assert out["standard"] == "CellML 2.0"
     root = ET.fromstring(out["content"].split("\n", 1)[1])
@@ -56,13 +56,13 @@ def test_cellml_refuses_to_guess_unknown_units() -> None:
         name="x", unit="mystery_unit", role="state", initial=1.0,
         bounds=None, description="",
     )
-    out = export_model(model, format="cellml-2.0")
+    out = general_engine.export_model(model, format="cellml-2.0")
     assert out["status"] == "ADAPTER_REQUIRED"
     assert out["unsupported_units"] == ["mystery_unit"]
 
 
 def test_notebook_export_is_valid_nbformat_4_json() -> None:
-    out = export_model(_decay(), format="ipynb")
+    out = general_engine.export_model(_decay(), format="ipynb")
     assert out["status"] == "PASS"
     notebook = json.loads(out["content"])
     assert notebook["nbformat"] == 4
@@ -71,7 +71,7 @@ def test_notebook_export_is_valid_nbformat_4_json() -> None:
 
 
 def test_unversioned_standard_alias_remains_conservative() -> None:
-    out = export_model(_decay(), format="sbml")
+    out = general_engine.export_model(_decay(), format="sbml")
     assert out["status"] == "ADAPTER_REQUIRED"
 
 

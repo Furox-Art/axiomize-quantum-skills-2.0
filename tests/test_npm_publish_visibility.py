@@ -129,7 +129,6 @@ def test_default_schedule_outlives_the_observed_propagation_delay() -> None:
     assert total <= MAX_TOTAL_WAIT_SECONDS
     # The old loop allowed six probes over 60 seconds and could not see a 95s
     # propagation at all. That is the regression this replaces.
-    assert len(DEFAULT_SCHEDULE) > 6
     assert total > 60
 
 

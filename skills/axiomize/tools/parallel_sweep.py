@@ -157,6 +157,7 @@ def main():
     p.add_argument("--job", choices=["sweep", "mc"], default="sweep")
     p.add_argument("--workers", type=int, default=default_workers)
     args = p.parse_args()
+    workers = 0
     try:
         workers = _bounded_workers(args.workers)
     except ValueError as exc:

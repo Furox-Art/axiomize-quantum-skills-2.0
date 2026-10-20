@@ -8,11 +8,11 @@ from __future__ import annotations
 
 import math
 import time
-from typing import Any, Callable
+from typing import Any
 
 import numpy as np
 
-from axiomize.general_engine import export_model, numerical_refinement, simulate_model
+from axiomize import general_engine
 from axiomize.model_ir import ModelFamily, ModelIR
 
 _CASE_BUDGET_S = 30.0
@@ -47,7 +47,7 @@ def _models() -> dict[ModelFamily, ModelIR]:
 
 def _execute_family(family:ModelFamily,model:ModelIR)->None:
     approve=family in {ModelFamily.BAYESIAN,ModelFamily.MULTIPHYSICS}
-    out=simulate_model(model,t_span=(0,1.2 if family==ModelFamily.HYBRID else 1),points=20,seed=11,approve_heavy=approve)
+    out=general_engine.simulate_model(model,t_span=(0,1.2 if family==ModelFamily.HYBRID else 1),points=20,seed=11,approve_heavy=approve)
     if out.get("status")!="PASS":raise AssertionError(f"{family.value} execution returned {out.get('status')}: {out}")
     if family==ModelFamily.ALGEBRAIC and abs(out["states"]["x"]-2)>1e-8:raise AssertionError("algebraic root incorrect")
     if family==ModelFamily.ODE and abs(out["states"]["x"][-1]-math.exp(-1))>1e-4:raise AssertionError("ODE reference mismatch")
@@ -64,19 +64,19 @@ def _edge_contracts(models:dict[ModelFamily,ModelIR])->None:
     else: raise AssertionError("expression escape accepted")
     # Every family must expose an approval-gated verification plan before repeats.
     for family,model in models.items():
-        out=numerical_refinement(model,t_span=(0,1),points=10,seed=3,approve_heavy=False)
+        out=general_engine.numerical_refinement(model,t_span=(0,1),points=10,seed=3,approve_heavy=False)
         if out.get("status")!="APPROVAL_REQUIRED":raise AssertionError(f"{family.value} numerical verification not approval-gated: {out}")
-    if export_model(models[ModelFamily.ODE],format="modelica-3.6").get("status")!="PASS":raise AssertionError("Modelica export failed")
-    if export_model(models[ModelFamily.NETWORK],format="graphml").get("status")!="PASS":raise AssertionError("GraphML export failed")
-    if export_model(models[ModelFamily.CAUSAL],format="causal-dot").get("status")!="PASS":raise AssertionError("causal DOT export failed")
-    if export_model(models[ModelFamily.ODE],format="portable-bundle-v1").get("status")!="PASS":raise AssertionError("portable bundle failed")
+    if general_engine.export_model(models[ModelFamily.ODE],format="modelica-3.6").get("status")!="PASS":raise AssertionError("Modelica export failed")
+    if general_engine.export_model(models[ModelFamily.NETWORK],format="graphml").get("status")!="PASS":raise AssertionError("GraphML export failed")
+    if general_engine.export_model(models[ModelFamily.CAUSAL],format="causal-dot").get("status")!="PASS":raise AssertionError("causal DOT export failed")
+    if general_engine.export_model(models[ModelFamily.ODE],format="portable-bundle-v1").get("status")!="PASS":raise AssertionError("portable bundle failed")
 
 
 def run_stress_matrix()->dict[str,Any]:
     models=_models(); missing=set(ModelFamily)-set(models)
     if missing:return {"status":"FAIL","detail":f"families missing from matrix: {sorted(x.value for x in missing)}"}
     results=[]; start_all=time.monotonic()
-    for family in ModelFamily:
+    for family in list(ModelFamily):
         start=time.monotonic()
         try:_execute_family(family,models[family])
         except Exception as exc:status="FAIL"; error=f"{type(exc).__name__}: {exc}"

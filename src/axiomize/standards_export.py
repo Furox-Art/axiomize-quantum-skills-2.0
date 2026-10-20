@@ -152,6 +152,7 @@ def export_sbml_l3v2(model: ModelIR) -> dict[str, Any]:
         if errors:
             validation["messages"] = [str(document.getError(i).getMessage()) for i in range(min(errors, 20))]
     except ImportError:
+        # python-libsbml is optional; the structural checks above are the fallback.
         pass
 
     return {
@@ -320,6 +321,7 @@ def _validate_cellml(content: str) -> dict[str, Any]:
                 for i in range(min(validate_errors, max(0, 20 - parse_errors)))
             ]
     except ImportError:
+        # libcellml is optional; the structural checks above are the fallback.
         pass
     return validation
 

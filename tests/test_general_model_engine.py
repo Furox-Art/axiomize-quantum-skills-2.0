@@ -10,8 +10,8 @@ from axiomize.application.general_services import (
     model_discovery_service,
     model_plan_service,
 )
+from axiomize import general_engine
 from axiomize.general_engine import (
-    export_model,
     fit_ode_model,
     infer_domain,
     rank_model_fits,
@@ -132,14 +132,14 @@ def test_causal_claim_is_not_inferred_from_fit_alone() -> None:
 
 def test_export_is_portable_and_does_not_fake_standards() -> None:
     model = decay_model()
-    exported = export_model(model, format="json")
+    exported = general_engine.export_model(model, format="json")
     decoded = json.loads(exported["content"])
     assert decoded["schema_version"] == "1.0"
     assert decoded["family"] == "ode"
 
-    py = export_model(model, format="python")
+    py = general_engine.export_model(model, format="python")
     assert "ModelIR.from_dict" in py["content"]
-    sbml = export_model(model, format="sbml")
+    sbml = general_engine.export_model(model, format="sbml")
     assert sbml["status"] == "ADAPTER_REQUIRED"
 
 

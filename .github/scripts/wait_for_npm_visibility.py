@@ -139,13 +139,15 @@ class _Response(Protocol):
 
     status: int
 
-    def read(self) -> bytes: ...
+    def read(self) -> bytes:
+        pass
 
 
 class _Opener(Protocol):
     """Stand-in for ``urllib.request.urlopen``, injectable so tests need no network."""
 
-    def __call__(self, request: urllib.request.Request, timeout: float) -> _Response: ...
+    def __call__(self, request: urllib.request.Request, timeout: float) -> _Response:
+        pass
 
 
 def _fetch_packument(

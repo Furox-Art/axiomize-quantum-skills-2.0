@@ -5,7 +5,6 @@ No coverage exemptions, fabricated input datasets or ignored subprocess errors.
 """
 from __future__ import annotations
 
-import math
 import sys
 
 import pytest

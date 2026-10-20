@@ -7,14 +7,13 @@ import math
 import numpy as np
 import pytest
 
-from axiomize.bayesian import engine_v2
 from axiomize.bayesian.engine_v2 import (
     _log_prior,
     _parameters,
     _validate_observations_for_family,
     infer_bayesian_model,
 )
-from axiomize.model_ir import EquationSpec, ModelFamily, ModelIR, ParameterSpec, VariableSpec
+from axiomize.model_ir import EquationSpec, ModelFamily, ModelIR, ParameterSpec
 
 OBS = [0.9, 1.1, 1.0, 0.8]
 

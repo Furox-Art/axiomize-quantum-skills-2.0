@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import math
 
-import numpy as np
 import pytest
 
 from axiomize import general_engine_core as core
