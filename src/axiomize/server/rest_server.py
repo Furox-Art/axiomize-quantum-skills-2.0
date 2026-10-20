@@ -60,7 +60,7 @@ from typing import Any
 from urllib.parse import unquote, urlparse
 
 from axiomize.limits import MAX_JSON_BYTES
-from axiomize.runs.state import RunState, resolve_run_directory
+from axiomize.runs.state import RunState
 
 _MAX_CONCURRENT_REQUESTS = 32
 _DEFAULT_CONNECTION_TIMEOUT_S = 30.0

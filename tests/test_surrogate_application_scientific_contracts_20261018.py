@@ -7,7 +7,6 @@ import pytest
 from axiomize.application import surrogate_services as service
 from axiomize.model_ir import ModelFamily
 from axiomize.scientific_stress import _models
-from axiomize.surrogate import fit_polynomial_surrogate
 
 
 def physical_ode():

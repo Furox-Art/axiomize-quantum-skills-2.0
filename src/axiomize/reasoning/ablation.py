@@ -26,7 +26,7 @@ from __future__ import annotations
 
 import argparse
 import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
@@ -148,7 +148,6 @@ def _run_argmax_commit(rng: np.random.Generator, signals: _Signals) -> Outcome:
 def _run_beam_top2(rng: np.random.Generator, signals: _Signals) -> Outcome:
     k = signals.qualities.size
     evidence = np.zeros(k)
-    tracked = np.arange(k)
     cost = 0.0
     for round_no in range(1, _MAX_ROUNDS + 1):
         if round_no == 1:
@@ -274,10 +273,10 @@ def render_report(results: dict) -> str:
         "# Reasoning branch-controller ablation report",
         "",
         f"Deterministic offline ablation (seed {results['seed']}, "
-        f"{results['trials_per_cell']} episodes per cell, deadline {results['max_rounds']} rounds).",
+        + f"{results['trials_per_cell']} episodes per cell, deadline {results['max_rounds']} rounds).",
         "No LLM calls; ground truth known per episode. Baselines: argmax commits at "
-        "round 1; beam keeps top-2 until the deadline; the controller applies the real "
-        "score/dormancy/revival/collapse policy with adaptive observation allocation.",
+        + "round 1; beam keeps top-2 until the deadline; the controller applies the real "
+        + "score/dormancy/revival/collapse policy with adaptive observation allocation.",
         "",
     ]
     for difficulty, cell in results["cells"].items():
@@ -306,15 +305,15 @@ def render_report(results: dict) -> str:
         "- `argmax_commit` is fast and cheap but locks in early noise; its premature-wrong "
         "rate is the honest price of one-round decisions.",
         "- `beam_top2` never commits early, always pays the full deadline cost, and is "
-        "structurally blind in regime-shift episodes (the surging hypothesis never enters "
-        "its top-2 in time).",
+        + "structurally blind in regime-shift episodes (the surging hypothesis never enters "
+        + "its top-2 in time).",
         f"- `branch_controller` leads or ties every regime on accuracy (easy "
-        f"{ctrl_easy['accuracy']:.3f}, moderate {results['cells']['moderate']['policies']['branch_controller']['accuracy']:.3f}, "
-        f"hard {ctrl_hard['accuracy']:.3f}) and revives dormant branches on new evidence "
-        f"({ctrl_easy['revivals']} revivals in the easy pool). Hard-regime argmax "
-        f"premature-wrong rate: {arg_hard['premature_wrong_rate']:.3f}. "
-        "The edge is bought with more observations than beam: dormancy engages mainly for "
-        "clearly dominated branches under the reference defaults.",
+        + f"{ctrl_easy['accuracy']:.3f}, moderate {results['cells']['moderate']['policies']['branch_controller']['accuracy']:.3f}, "
+        + f"hard {ctrl_hard['accuracy']:.3f}) and revives dormant branches on new evidence "
+        + f"({ctrl_easy['revivals']} revivals in the easy pool). Hard-regime argmax "
+        + f"premature-wrong rate: {arg_hard['premature_wrong_rate']:.3f}. "
+        + "The edge is bought with more observations than beam: dormancy engages mainly for "
+        + "clearly dominated branches under the reference defaults.",
         "",
         "## Calibration note",
         "",
@@ -422,8 +421,8 @@ def render_sweep_report(sweep: dict) -> str:
         f"Recommended measured candidate: **{best:.2f}** ({why}).",
         "",
         "Production defaults are intentionally unchanged in this change: the sweep is "
-        "evidence for calibration, and the semantics of `DEFAULT_THRESHOLDS` stay under "
-        "explicit project control.",
+        + "evidence for calibration, and the semantics of `DEFAULT_THRESHOLDS` stay under "
+        + "explicit project control.",
     ]
     return "\n".join(lines) + "\n"
 

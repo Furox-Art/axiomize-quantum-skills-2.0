@@ -376,10 +376,13 @@ def main() -> int:
     print(f"twine pins: all accept Metadata-Version {EMITTED_METADATA_VERSION}")
 
     # Cross-check against the shared helper so both gates read one definition.
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
     try:
-        sys.path.insert(0, str(Path(__file__).resolve().parent))
         from version_lockstep import VersionDrift, assert_lockstep  # noqa: PLC0415
-
+    except ImportError as exc:
+        print(f"FAIL: cannot import the shared version lockstep helper: {exc}", file=sys.stderr)
+        return 1
+    try:
         assert_lockstep()
     except VersionDrift as exc:
         print(f"FAIL: {exc}", file=sys.stderr)

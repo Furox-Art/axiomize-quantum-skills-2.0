@@ -267,7 +267,7 @@ def test_validate_metadata_rejects_blank_provider() -> None:
 def test_validate_submission_imports_sibling_when_run_as_script(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import axiomize.reasoning.benchmark as benchmark_package
+    benchmark_package = importlib.import_module("axiomize.reasoning.benchmark")
 
     module_path = Path(benchmark_package.__file__).parent / "validate_submission.py"
     spec = importlib.util.spec_from_file_location(

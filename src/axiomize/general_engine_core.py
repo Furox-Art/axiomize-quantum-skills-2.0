@@ -8,7 +8,6 @@ such instead of being silently replaced by a reference SIR/logistic model.
 
 from __future__ import annotations
 
-import ast
 import importlib.util
 import json
 import math
@@ -27,10 +26,36 @@ from axiomize.model_ir import (
 
 from axiomize.safe_expression import sympy_expression, validate_expression
 
-_ALLOWED_FUNCTIONS = {
-    "sin", "cos", "tan", "asin", "acos", "atan", "sinh", "cosh", "tanh",
-    "exp", "log", "sqrt", "Abs", "Min", "Max", "Piecewise", "Heaviside",
-}
+__all__ = [
+    "CURRENT_SCHEMA_VERSION",
+    "ConstraintSpec",
+    "ModelFamily",
+    "ModelIR",
+    "ProvenanceEvent",
+    "ScientificConstraintFailure",
+    "UnsupportedModelExecution",
+    "build_execution_plan",
+    "discover_sparse_dynamics",
+    "estimate_compute",
+    "export_model",
+    "fit_ode_model",
+    "infer_domain",
+    "local_stability",
+    "nondimensionalization_plan",
+    "provenance_snapshot",
+    "rank_experiment_times",
+    "rank_model_fits",
+    "recommend_model_families",
+    "repair_model",
+    "residual_diagnostics",
+    "select_solver",
+    "simulate_model",
+    "split_uncertainty",
+    "sympy_expression",
+    "validate_expression",
+    "validate_model",
+    "validity_scan",
+]
 
 
 class UnsupportedModelExecution(NotImplementedError):

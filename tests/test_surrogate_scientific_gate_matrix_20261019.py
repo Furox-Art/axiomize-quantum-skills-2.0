@@ -1,7 +1,6 @@
 """Native polynomial-surrogate fidelity, provenance and refusal boundaries."""
 from __future__ import annotations
 
-import math
 
 import numpy as np
 import pytest

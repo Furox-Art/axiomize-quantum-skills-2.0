@@ -8,19 +8,12 @@ entry.
 
 from __future__ import annotations
 
-import ast
 import math
 from typing import Any, Callable
 
 import numpy as np
 
 from axiomize.model_ir import ModelFamily, ModelIR
-
-_ALLOWED_FUNCTIONS = {
-    "sin", "cos", "tan", "asin", "acos", "atan", "sinh", "cosh", "tanh",
-    "exp", "log", "sqrt", "Abs", "Min", "Max", "Heaviside",
-}
-
 
 def _validate_expression(expression: str, allowed_names: set[str]) -> None:
     """Run the shared validator (budgets + node set), not a local copy.
@@ -1135,7 +1128,6 @@ def _simulate_discrete_event(model: ModelIR, *, t_span: tuple[float, float], poi
             history[sample_index] = state
             sample_index += 1
         if next_time > t1:
-            current_time = t1
             break
         choice = int(rng.choice(len(compiled_events), p=rates / total_rate))
         event_name, _, delta_fns = compiled_events[choice]
@@ -1254,7 +1246,6 @@ def _simulate_hybrid(model: ModelIR, *, t_span: tuple[float, float], points: int
                             hit_time = candidate_time
                             hit_index = event_i
             if hit_index is None or hit_time is None:
-                current = target
                 break
             item = compiled[hit_index]
             event_state = np.asarray(solution.y_events[hit_index][0], dtype=float)

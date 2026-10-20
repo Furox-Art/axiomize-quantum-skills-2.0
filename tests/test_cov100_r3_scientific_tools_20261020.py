@@ -12,7 +12,6 @@ import scipy.integrate
 import sympy
 
 from axiomize.integrations import scs_adapter
-from axiomize.tools.numerical import scipy_tool
 from axiomize.tools.numerical.scipy_tool import SciPyTool, solve_sir
 from axiomize.tools.optimization import casadi_tool, cvxpy_tool
 from axiomize.tools.symbolic import sympy_tool

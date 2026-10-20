@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import pytest
 
-from axiomize import scientific_stress as stress
+from axiomize import general_engine, scientific_stress as stress
 from axiomize.model_ir import ModelFamily
 
 
@@ -89,13 +89,13 @@ def test_family_reference_missing_mandatory_data_is_not_pass(monkeypatch, family
     def injected(*args, **kwargs):
         return {"status": "PASS", field: {}}
 
-    monkeypatch.setattr(stress, "simulate_model", injected)
+    monkeypatch.setattr(general_engine, "simulate_model", injected)
     with pytest.raises((AssertionError, KeyError, TypeError)):
         stress._execute_family(family, stress._models()[family])
 
 
 def test_nonpass_solvers_fail_real_family_run(monkeypatch):
-    monkeypatch.setattr(stress, "simulate_model", lambda *args, **kwargs: {"status": "FAIL"})
+    monkeypatch.setattr(general_engine, "simulate_model", lambda *args, **kwargs: {"status": "FAIL"})
     with pytest.raises(AssertionError, match="execution returned FAIL"):
         stress._execute_family(ModelFamily.NETWORK, stress._models()[ModelFamily.NETWORK])
 
@@ -107,20 +107,20 @@ def test_nonpass_solvers_fail_real_family_run(monkeypatch):
     ("portable-bundle-v1", "portable bundle failed"),
 ])
 def test_broken_export_format_does_not_pass_crosscutting_integrity(monkeypatch, broken_format, expected):
-    original = stress.export_model
+    original = general_engine.export_model
 
     def fail_one(model, *, format):
         if format == broken_format:
             return {"status": "FAIL", "reason": "corrupt generated artifact"}
         return original(model, format=format)
 
-    monkeypatch.setattr(stress, "export_model", fail_one)
+    monkeypatch.setattr(general_engine, "export_model", fail_one)
     with pytest.raises(AssertionError, match=expected):
         stress._edge_contracts(stress._models())
 
 
 def test_unapproved_numeric_refinement_is_rejected(monkeypatch):
-    monkeypatch.setattr(stress, "numerical_refinement", lambda *args, **kw: {"status": "PASS"})
+    monkeypatch.setattr(general_engine, "numerical_refinement", lambda *args, **kw: {"status": "PASS"})
     with pytest.raises(AssertionError, match="not approval-gated"):
         stress._edge_contracts(stress._models())
 

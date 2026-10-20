@@ -18,15 +18,13 @@ import pytest
 
 
 def test_startup_applies_the_expected_runtime_patches() -> None:
-    import axiomize
-    from axiomize import advanced_family_engine as afe
-    from axiomize import general_engine as ge
+    from axiomize import __version__, advanced_family_engine as afe, general_engine as ge
 
     assert afe._compile_expression is ge._compile_expression_hardened
     assert ge._AXIOMIZE_112_INSTALLED is True
     assert afe._estimate_causal.__module__ == "axiomize.causal_engine"
     assert getattr(ge._advanced_preflight, "__axiomize_runtime_guard__", False) is True
-    assert axiomize.__version__
+    assert __version__
 
 
 def test_install_fails_loudly_when_the_patch_surface_is_broken() -> None:

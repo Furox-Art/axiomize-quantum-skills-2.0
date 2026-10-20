@@ -4,14 +4,12 @@ from __future__ import annotations
 
 import argparse
 import json
-import sys
 
 from axiomize.reasoning.branch_controller import (
     Branch,
     BranchMetrics,
     BranchState,
     collapse_decision,
-    rank_branches,
     recommended_width,
     uncertainty_from_branches,
 )

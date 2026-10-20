@@ -1,6 +1,6 @@
 """Validate reproducible community benchmark result bundles."""
 from __future__ import annotations
-import argparse, json, re
+import argparse, json
 from datetime import date
 from pathlib import Path
 
