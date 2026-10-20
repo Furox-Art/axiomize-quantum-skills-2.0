@@ -303,7 +303,7 @@ def render_report(results: dict) -> str:
         "## Reading",
         "",
         "- `argmax_commit` is fast and cheap but locks in early noise; its premature-wrong "
-        "rate is the honest price of one-round decisions.",
+        + "rate is the honest price of one-round decisions.",
         "- `beam_top2` never commits early, always pays the full deadline cost, and is "
         + "structurally blind in regime-shift episodes (the surging hypothesis never enters "
         + "its top-2 in time).",
