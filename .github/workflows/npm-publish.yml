@@ -41,8 +41,9 @@ name: Release (npm)
 #   2.0.0 is higher than the new version 1.2.0. You must specify a tag using --tag.
 #
 # Reproduced against the live registry with `npm publish --dry-run` (npm 11.9.0).
-# So `--tag latest` is passed explicitly, and `publishConfig.tag` in package.json
-# declares the same intent in the package metadata.
+# So the dist-tag is passed explicitly -- `latest` for a stable version, `next`
+# for a prerelease, which must not move `latest` -- and `publishConfig.tag` in
+# package.json declares the stable intent in the package metadata.
 #
 # Consequence: publishing moves `latest` from 2.0.0 to 1.2.0 as part of the upload.
 # No separate `npm dist-tag add` is needed, and none should be run afterwards. A
@@ -123,7 +124,7 @@ jobs:
           node-version: "24"
           registry-url: "https://registry.npmjs.org"
 
-      # Trusted publishing with an explicit dist-tag (`--tag latest` below) needs
+      # Trusted publishing with an explicit dist-tag (`--tag` below) needs
       # npm >= 11.21.0; the npm bundled with Node 24 is older (11.19.0). Stay on
       # npm 11: npm 12 changed the `npm pack --json` shape that the tarball
       # assertions below (and the contract test) parse as an array.
@@ -203,6 +204,22 @@ jobs:
       - name: Read the version to publish
         id: pkg
         run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+
+      # A prerelease uploaded under `latest` would make a plain install resolve
+      # to an RC. Stable versions keep `latest`; prereleases publish under `next`.
+      - name: Choose the dist-tag
+        id: disttag
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${{ steps.pkg.outputs.version }}"
+          if [[ "$version" == *-* ]]; then
+            tag=next
+          else
+            tag=latest
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "::notice::Publishing ${version} under the '${tag}' dist-tag."
 
       # Idempotency guard. npm versions are immutable, so a duplicate upload is a
       # hard error, not a no-op. `npm view <pkg>@<version>` exits non-zero when the
@@ -345,13 +362,13 @@ jobs:
       # reports success while uploading nothing is the exact defect this workflow
       # had when it was stubbed out.
       #
-      # `--tag latest` is always explicit, in both modes: the registry already
+      # The dist-tag is always explicit, in both modes: the registry already
       # holds 2.0.0, which sorts above this version, so an implicit tag aborts
       # with "Cannot implicitly apply the \"latest\" tag because previously
       # published version 2.0.0 is higher than the new version 1.2.0."
       - name: Publish to npm with OIDC Trusted Publishing and provenance
         if: ${{ steps.gate.outputs.skip != 'true' && steps.mode.outputs.mode == 'oidc' }}
-        run: npm publish --access public --provenance --tag latest
+        run: npm publish --access public --provenance --tag "${{ steps.disttag.outputs.tag }}"
 
       - name: Publish to npm with the NPM_TOKEN secret
         if: ${{ steps.gate.outputs.skip != 'true' && steps.mode.outputs.mode == 'token' }}
@@ -363,7 +380,7 @@ jobs:
         # No --provenance: the attestation is signed from the OIDC identity, and
         # there is no OIDC identity in this mode. Passing it would fail the upload
         # rather than silently produce an unattributed tarball.
-        run: npm publish --access public --tag latest
+        run: npm publish --access public --tag "${{ steps.disttag.outputs.tag }}"
 
       # The upload returning is not the version being readable. `npm publish`
       # completes when the registry's WRITE path accepts the tarball; the READ

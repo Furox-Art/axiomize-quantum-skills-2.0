@@ -62,8 +62,20 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 
-#: Bumped together with the release.
-CURRENT_VERSION = "1.2.5"
+def _tree_version() -> str:
+    """Read the version from pyproject.toml so the guard cannot pin a stale release."""
+    match = re.search(
+        r'^version\s*=\s*"([^"]+)"',
+        (ROOT / "pyproject.toml").read_text(encoding="utf-8"),
+        re.MULTILINE,
+    )
+    if match is None:
+        raise SystemExit("pyproject.toml has no [project] version")
+    return match.group(1)
+
+
+#: Derived, not hardcoded: a pinned copy went stale on the previous release.
+CURRENT_VERSION = _tree_version()
 
 DIST = "axiomize_quantum_skills_2_0"
 PROJECT = "axiomize-quantum-skills-2.0"
