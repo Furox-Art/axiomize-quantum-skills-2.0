@@ -532,3 +532,47 @@ test('both publish modes keep the pre-publish gates', () => {
     'the job must request only contents:read and id-token:write',
   );
 });
+
+test('the publish workflow enforces the main-only release contract', () => {
+  const source = read(PUBLISH_WORKFLOW);
+  // A workflow_dispatch can select any ref. check_release_contract.py is the
+  // gate that refuses a release workflow outside refs/heads/main; the PyPI
+  // workflow runs it, and the npm workflow must run the same guard before any
+  // step that can reach the registry.
+  assert.ok(
+    source.includes('python .github/scripts/check_release_contract.py'),
+    'the npm publish workflow must run check_release_contract.py',
+  );
+  const guard = source.indexOf('check_release_contract.py');
+  const oidcPublish = source.indexOf('Publish to npm with OIDC');
+  const tokenPublish = source.indexOf('Publish to npm with the NPM_TOKEN secret');
+  assert.ok(guard < oidcPublish && guard < tokenPublish,
+    'the main-only guard must precede both publish steps');
+});
+
+test('package metadata does not force provenance on the token path', () => {
+  // publishConfig.provenance=true would apply to every `npm publish`, including
+  // the token fallback that deliberately omits --provenance. Provenance is then
+  // requested by package metadata the fallback cannot satisfy, so the flag
+  // belongs only on the OIDC command line.
+  const manifest = JSON.parse(read('package.json'));
+  assert.ok(manifest.publishConfig, 'package.json must keep publishConfig');
+  assert.strictEqual(
+    manifest.publishConfig.provenance,
+    undefined,
+    'publishConfig must not set provenance: the OIDC step passes --provenance explicitly',
+  );
+});
+
+test('the manual-run reason reaches the shell through the environment', () => {
+  const source = read(PUBLISH_WORKFLOW);
+  const step = stepBody(source, 'Report the reason for a manual run');
+  // Caller-controlled text must never be interpolated into a script body: a
+  // reason containing shell metacharacters would execute on the runner.
+  assert.match(step, /REASON:\s*\$\{\{\s*inputs\.reason\s*\}\}/,
+    'the reason must be bound to an environment variable');
+  assert.match(step, /printf[^\n]*"\$REASON"/,
+    'the script must print the environment variable, not the expression');
+  assert.doesNotMatch(step, /run:[^\n]*\$\{\{\s*inputs\.reason/,
+    'the reason expression must not appear on a run: line');
+});

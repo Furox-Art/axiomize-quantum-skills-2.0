@@ -23,8 +23,7 @@
   },
   "publishConfig": {
     "tag": "latest",
-    "access": "public",
-    "provenance": true
+    "access": "public"
   },
   "keywords": [
     "modeling",
