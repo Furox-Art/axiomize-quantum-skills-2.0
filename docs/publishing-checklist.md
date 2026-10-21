@@ -14,7 +14,7 @@ community lists.
 | Import package | `axiomize` |
 | Skill folders | `skills/axiomize/`, `skills/quantum-reasoning/` |
 | License | MIT |
-| Current release | 1.2.3 |
+| Current release | 1.2.5 |
 
 **Do not link `Furox-Art/axiomize`.** That is a separate, related repository with its own
 release line. This package is the distribution `axiomize-quantum-skills-2.0`, and every
@@ -45,13 +45,15 @@ axiomize tools        # which backends are really installed
 axiomize benchmark    # -> {"status": "PASS", "passed": 12, "total": 12}
 ```
 
-Verified at 1.2.0, commit `9c2990c`, CPython 3.12.10. Quote that commit if you quote the
-`12/12` result.
+Verified at 1.2.0, commit `9c2990c`, CPython 3.12.10. That is a historical record; the
+current package line is 1.2.5. Quote that commit if you quote the `12/12` result.
 
 ## Supply chain
 
-Both registries publish by **OIDC trusted publishing**, not by a long-lived token, and
-**both carry a build attestation**.
+Both registries are configured for **OIDC trusted publishing**, not a long-lived token,
+and the 1.2.5 release is published by that attested workflow on both channels. That is
+not retroactive: the npm 1.2.4 tarball carries two Sigstore bundles, but the PyPI 1.2.4
+upload was manual and has **no** PEP 740 attestation. PyPI 1.2.3 does have one.
 
 ### Three mechanisms, not one
 
@@ -121,9 +123,11 @@ Sigstore build provenance; only the attestations endpoint above does that.
 
 ### PyPI
 
-Published by trusted publishing against the `pypi` environment, and **attested too**. PyPI
-serves [PEP 740](https://peps.python.org/pep-0740/) attestations **per file**, so the path
-ends in `/<filename>/provenance`:
+PyPI 1.2.3 was published by trusted publishing against the `pypi` environment and is
+**attested**; 1.2.5 is published the same way. The 1.2.4 upload was manual and has **no**
+PEP 740 attestation: its `/provenance` URL returns `404`, which here means no attestation
+was recorded for that file. PyPI serves [PEP 740](https://peps.python.org/pep-0740/)
+attestations **per file**, so the path ends in `/<filename>/provenance`:
 
 ```bash
 curl -s https://pypi.org/integrity/axiomize-quantum-skills-2.0/1.2.3/axiomize_quantum_skills_2_0-1.2.3-py3-none-any.whl/provenance
@@ -164,8 +168,8 @@ has an attestation on it.
 
 | Channel | Attestation | Predicate | Verifies build provenance? |
 |---|---|---|---|
-| npm | yes, 2 bundles | npm publish + SLSA v1 | **yes** — names workflow, repo and commit |
-| PyPI | yes, per file | PEP 740 publish | partially — names workflow and environment, not the commit |
+| npm | yes, 2 bundles (1.2.3, 1.2.4) | npm publish + SLSA v1 | **yes** — names workflow, repo and commit |
+| PyPI | yes, per file for 1.2.3 and 1.2.5+; no for 1.2.4 | PEP 740 publish | partially — names workflow and environment, not the commit |
 
 Neither channel is the weaker one in the way a digest-only channel would be, but they are
 not equally detailed. If you need the resolved commit, npm's SLSA statement is the one
@@ -208,7 +212,7 @@ The workflow's `use_token_fallback` input publishes with `NPM_TOKEN` and **witho
 `--provenance`, because a Sigstore attestation is signed from the OIDC identity and a token
 has none. If you are reading this page to decide whether a given tarball is attested, check
 the endpoint above rather than assuming: `2.0.0` returns HTTP 404 (no attestation),
-`1.2.0` and `1.2.3` each return two.
+`1.2.0`, `1.2.3` and `1.2.4` each return two.
 
 ## Where to submit
 
@@ -223,7 +227,7 @@ the endpoint above rather than assuming: `2.0.0` returns HTTP 404 (no attestatio
 ## Before submitting — all verified
 
 - [x] CI green on `main`
-- [x] Latest GitHub release matches the PyPI version (1.2.3)
+- [x] Latest GitHub release matches the PyPI version
 - [x] `pip install` + `axiomize tools` + `axiomize benchmark` verified from a clean venv
 - [x] Documentation site builds and is live
 - [x] Every README and docs link returns HTTP 200
@@ -241,7 +245,7 @@ These would be untrue, so leave them out:
 | "N independent agents produced these reports" | The stored reports are maintainer-authored |
 | "supported by Claude Code / Cursor / OpenCode" | Only MCP protocol conformance was tested here |
 | a stars, forks, or downloads figure | Do not hardcode; link the package page instead |
-| "npm package ready to use" | npm 1.2.3 is published and attested, but it is only a launcher shim for the Python CLI. Say "PyPI 1.2.3 is the install; npm 1.2.3 is a Node launcher for it" |
+| "npm package ready to use" | npm 1.2.5 is published and attested, but it is only a launcher shim for the Python CLI. Say "PyPI 1.2.5 is the install; npm 1.2.5 is a Node launcher for it" |
 
 ## Keeping this honest
 

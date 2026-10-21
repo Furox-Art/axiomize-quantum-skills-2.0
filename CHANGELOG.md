@@ -2,6 +2,32 @@
 
 All notable changes to Axiomize are documented here. Axiomize follows semantic versioning; release claims are tied to exact-wheel CI/release evidence.
 
+## [1.2.5] - 2026-10-21
+
+### Release integrity
+
+- Corrected the provenance record. The npm 1.2.4 tarball carries two Sigstore
+  bundles (npm publish attestation and SLSA v1 provenance). The PyPI 1.2.4
+  upload was manual and has no PEP 740 attestation; its per-file
+  `/provenance` URL returns `404`. From 1.2.5 onward both registries publish
+  through the attested release workflow, and the docs now say exactly that
+  instead of claiming attestation for every release.
+- Corrected the npm shim size claim. The 1.2.4 tarball is six files, about
+  66.7 kB unpacked and about 25 kB compressed, not "about 44 kB".
+
+### Documentation
+
+- Updated the current-version references that still named 1.2.0 or 1.2.3 in
+  README, `docs/index.md`, `docs/integrations.md`, `docs/tutorial.md`,
+  `docs/publishing-checklist.md` and `SECURITY.md`. Verification records tied
+  to commit `9c2990c` are now labelled historical.
+- `docs/check_attestation_claims.py` pins `CURRENT_VERSION` to 1.2.5 and its
+  PyPI online assertion targets the 1.2.5 wheel, which the attested release
+  workflow publishes; the module docstring records the 1.2.4 manual-upload
+  exception.
+
+No engine code changed in this release.
+
 ## [1.2.4] - 2026-10-13
 
 ### Security

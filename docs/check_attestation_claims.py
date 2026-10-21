@@ -14,12 +14,13 @@ Three different mechanisms get blurred into the single word "attested":
 
 Measured state of this project, re-checkable with ``--online``:
 
-==========  ==============  ==============================================
-Channel     Attested?       Endpoint
-==========  ==============  ==============================================
-npm         yes, 2 bundles  ``/-/npm/v1/attestations/<pkg>@<ver>`` -> 200
-PyPI        yes, per file   ``/integrity/<proj>/<ver>/<file>/provenance`` -> 200
-==========  ==============  ==============================================
+==========  ==========================================  ==============================================
+Channel     Attested?                                   Endpoint
+==========  ==========================================  ==============================================
+npm         yes, 2 bundles for 1.2.3 and 1.2.4         ``/-/npm/v1/attestations/<pkg>@<ver>`` -> 200
+PyPI        yes per file for 1.2.3 and 1.2.5+; no      ``/integrity/<proj>/<ver>/<file>/provenance``
+            for 1.2.4 (manual upload, no PEP 740)      -> 200 when attested, 404 for 1.2.4
+==========  ==========================================  ==============================================
 
 Rules enforced on the prose of the documents that state *current* facts:
 
@@ -62,7 +63,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 #: Bumped together with the release.
-CURRENT_VERSION = "1.2.3"
+CURRENT_VERSION = "1.2.5"
 
 DIST = "axiomize_quantum_skills_2_0"
 PROJECT = "axiomize-quantum-skills-2.0"

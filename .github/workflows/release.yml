@@ -62,6 +62,13 @@ jobs:
         run: python .github/scripts/version_lockstep.py
       - name: Enforce release provenance contract
         run: python .github/scripts/check_release_contract.py
+      - name: Negative-control the attestation-claims guard
+        # The guard scans the docs for supply-chain claims that the registries do
+        # not back. Its self-test is version-independent and must stay fatal: a
+        # guard that cannot reject a known false claim is not a guard.
+        run: python docs/check_attestation_claims.py --self-test
+      - name: Scan the docs for unbacked attestation claims
+        run: python docs/check_attestation_claims.py
       - name: Resolve package metadata
         id: meta
         shell: bash
@@ -267,3 +274,11 @@ jobs:
           tag_name: v${{ needs.preflight.outputs.package_version }}
           target_commitish: ${{ github.sha }}
           generate_release_notes: true
+          # Attach the exact artifacts that were verified and published above.
+          # The SBOM pattern is optional: this workflow does not generate one
+          # yet, and fail_on_unmatched_files stays false so its absence is not
+          # an error. Adding SBOM generation later needs no change here.
+          files: |
+            dist/*.whl
+            dist/*.tar.gz
+            dist/*.sbom.spdx.json
