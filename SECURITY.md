@@ -57,9 +57,10 @@ otherwise.
 
 ## Supply chain
 
-Both registries publish by OIDC trusted publishing, and **both attach a build
-attestation**. Three mechanisms are easy to confuse, and only the third is build
-provenance:
+The npm 1.2.4 tarball carries a Sigstore build attestation. The PyPI 1.2.4 upload was
+made manually and has **no** PEP 740 attestation; PyPI 1.2.3 does have one. From 1.2.5
+onward, both registries publish by OIDC trusted publishing with a build attestation.
+Three mechanisms are easy to confuse, and only the third is build provenance:
 
 | Mechanism | Proves | Does **not** prove |
 |---|---|---|
@@ -67,7 +68,8 @@ provenance:
 | npm `dist.signatures` | The **registry** signed the packument; the metadata was not altered in transit. A transport signature, **not** provenance. | Anything about the build. npm signs every package. |
 | Build attestation | A named CI workflow, repository and commit produced the artifact. | That the build was correct. |
 
-Verify by hand:
+Verify by hand. The 1.2.3 examples below are historical but still resolvable; substitute
+the published 1.2.5 artifacts to check the current release:
 
 ```bash
 # npm: two bundles, including a full SLSA v1 build provenance statement

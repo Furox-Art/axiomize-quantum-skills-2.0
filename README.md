@@ -2,7 +2,7 @@
 
 This is not a separate product. It ships [axiomize](https://github.com/Furox-Art/axiomize) and [quantum-reasoning-skill](https://github.com/Furox-Art/quantum-reasoning-skill) together. Install those repositories when you need only one of them. This repository is not a second MCP registration.
 
-Current package line: **1.2.4**
+Current package line: **1.2.5**
 
 ![License](https://img.shields.io/badge/license-MIT-blue)
 ![Python](https://img.shields.io/python-3.10%2B-blue)
@@ -15,12 +15,14 @@ Download numbers live on the package pages themselves, where they are always cur
 [PyPI](https://pypi.org/project/axiomize-quantum-skills-2.0/) ·
 [npm](https://www.npmjs.com/package/axiomize-quantum-skills-2.0)
 
-**PyPI and npm both carry the release named above, and both publish by OIDC trusted
-publishing.** The npm package is a **thin Node launcher shim**, not the engine: six files,
-about 44 kB, one job — spawn the Python CLI. So install the Python package first. The npm
-tarball carries Sigstore attestations including a full SLSA v1 build provenance statement,
-and the PyPI release carries a PEP 740 attestation per artifact. Details, the three
-mechanisms they are easy to confuse with, and a verification recipe are in
+**The npm 1.2.4 tarball carries Sigstore attestations, including a full SLSA v1 build
+provenance statement. The PyPI 1.2.4 upload was made manually and has no PEP 740
+attestation — do not describe that release as attested.** From 1.2.5 onward, artifacts on
+both registries are published by the attested release workflow (OIDC trusted publishing).
+The npm package is a **thin Node launcher shim**, not the engine: six files, about 66.7 kB
+unpacked (about 25 kB as a tarball), one job — spawn the Python CLI. So install the Python
+package first. Details, the three mechanisms they are easy to confuse with, and a
+verification recipe are in
 [docs/publishing-checklist.md](docs/publishing-checklist.md#supply-chain).
 
 **Documentation:** <https://furox-art.github.io/axiomize-quantum-skills-2.0/>
@@ -49,6 +51,9 @@ static snapshot at full resolution, and the LaTeX sample it converts to, are in
 
 ## Quick start (verified against 1.2.0)
 
+The current package line is 1.2.5. The commands below were last re-verified against 1.2.0
+at commit `9c2990c`; that verification is a historical record, not a claim about 1.2.5.
+
 ### Install
 
 `pip install axiomize-quantum-skills-2.0`. Python 3.10+. NumPy, SciPy, SymPy, NetworkX,
@@ -70,7 +75,7 @@ fenics                  UNAVAILABLE (fenics not installed)
 ```
 
 The full list has 13 entries. `axiomize capabilities` is the machine-readable equivalent and
-leads with `"axiomize_version": "1.2.4"`.
+leads with `"axiomize_version": "1.2.5"`.
 
 ### 2. Run the install-safe benchmark suite
 
@@ -126,8 +131,9 @@ high evidence. The other two subcommands are `select` (rank model candidates fro
 `{"candidates": [...]}` file) and `width` (an uncertainty band from a list of scores).
 
 Every command above was run against `axiomize-quantum-skills-2.0` 1.2.0 at commit `9c2990c`
-on CPython 3.12.10 (Windows). [docs/tutorial.md](docs/tutorial.md) is the full walkthrough
-with real output for each step.
+on CPython 3.12.10 (Windows); that is a historical verification record. The current package
+line is 1.2.5. [docs/tutorial.md](docs/tutorial.md) is the full walkthrough with real output
+for each step.
 
 ## Interfaces
 
@@ -180,8 +186,8 @@ cp -r axiomize-quantum-skills-2.0/skills/quantum-reasoning ~/.config/opencode/sk
 ## Benchmarks
 
 The 25-case corpus is graded in CI by `skills/axiomize/tools/benchmark_runner.py`
-(also `axiomize-benchmark`). Re-graded at commit `9c2990c`, axiomize 1.2.0, CPython 3.12.10
-(Windows), numpy 2.5.3 / scipy 1.18.1:
+(also `axiomize-benchmark`). Re-graded at commit `9c2990c` (historical record), axiomize
+1.2.0, CPython 3.12.10 (Windows), numpy 2.5.3 / scipy 1.18.1:
 
 ```bash
 python skills/axiomize/tools/benchmark_runner.py --case physics-rc-discharge --report benchmarks/reports/physics-rc-discharge.md
@@ -210,8 +216,9 @@ in [benchmarks/rubric.md](benchmarks/rubric.md) is not recorded for these cases;
   `pandas`.
 - Arbitrary code and theorem elaboration are **not** an OS sandbox. They require explicit
   trust. See [SECURITY.md](SECURITY.md) and [docs/security.md](docs/security.md).
-- **The npm package is a launcher shim, not a second implementation.** It is 6 files and
-  about 44 kB, and it does one thing: spawn the Python CLI. If the Python package is not
+- **The npm package is a launcher shim, not a second implementation.** It is 6 files,
+  about 66.7 kB unpacked (about 25 kB as a tarball), and it does one thing: spawn the
+  Python CLI. If the Python package is not
   installed, `npx axiomize-quantum` exits `127` with a message telling you to install it.
   There is no JavaScript engine here; use the `axiomize` console script or `python -m
   axiomize.cli` directly if you do not want the extra hop.

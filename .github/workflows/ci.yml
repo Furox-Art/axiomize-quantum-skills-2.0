@@ -42,6 +42,10 @@ jobs:
         run: python .github/scripts/version_lockstep.py
       - name: Release provenance contract
         run: python .github/scripts/check_release_contract.py
+      - name: Negative-control the attestation-claims guard
+        run: python docs/check_attestation_claims.py --self-test
+      - name: Scan the docs for unbacked attestation claims
+        run: python docs/check_attestation_claims.py
       - name: Security contract
         run: python .github/scripts/security_contract_smoke.py
 

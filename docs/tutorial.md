@@ -2,8 +2,9 @@
 
 A beginner walkthrough. Every command in this page was executed against
 `axiomize-quantum-skills-2.0` **1.2.0** at commit `9c2990c` on CPython 3.12.10 (Windows),
-with numpy 2.5.3 and scipy 1.18.1. If a command here stops working, that is a documentation
-bug worth reporting.
+with numpy 2.5.3 and scipy 1.18.1. That verification is a historical record; the current
+package line is 1.2.5. If a command here stops working, that is a documentation bug worth
+reporting.
 
 There are two ways in. **Track A** installs the Python engine. **Track B** installs the
 Markdown skill for an AI agent. They are independent; many people use both.
@@ -327,4 +328,4 @@ Fitted values come back with confidence intervals and explicit fit-quality score
 | `needs a model_ir ... JSONDecodeError: Unexpected UTF-8 BOM` | Your editor wrote a UTF-8 BOM. Save as plain UTF-8, no BOM |
 | `MigrationApprovalRequired` | Your IR uses a legacy field layout. Re-run with `--approve-migration` to see the preview diff, then update |
 | `npx axiomize-quantum` exits `127` saying it could not launch | The npm package is a launcher shim: install the Python package first (`pip install axiomize-quantum-skills-2.0`) so the CLI is on `PATH` |
-| `npx axiomize-quantum` fails with `SyntaxError: Unexpected token ';'` | You have the superseded `2.0.0` pinned. `npm install axiomize-quantum-skills-2.0@1.2.3`, or check `npm view axiomize-quantum-skills-2.0 dist-tags` |
+| `npx axiomize-quantum` fails with `SyntaxError: Unexpected token ';'` | You have the superseded `2.0.0` pinned. `npm install axiomize-quantum-skills-2.0@1.2.5`, or check `npm view axiomize-quantum-skills-2.0 dist-tags` |

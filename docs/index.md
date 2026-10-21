@@ -61,7 +61,8 @@ axiomize benchmark    # install-safe self-test
 axiomize validate --N 1000000
 ```
 
-Verified at version 1.2.0, commit `9c2990c`, CPython 3.12.10:
+Verified at version 1.2.0, commit `9c2990c`, CPython 3.12.10. That is a historical
+record; the current package line is 1.2.5:
 
 ```json
 {"status": "PASS", "passed": 12, "total": 12, ...}
@@ -99,9 +100,11 @@ Full walkthrough: [tutorial.md](tutorial.md).
   human rubric layer is defined but unscored.
 - Arbitrary code and theorem elaboration are not an OS sandbox. See
   [security.md](security.md).
-- The npm package is a thin Node launcher shim (6 files, about 44 kB) that spawns the
-  Python CLI; it is not a second implementation, so the Python package must be installed
-  and on `PATH`. PyPI and npm are both on `1.2.3` and both are attested.
+- The npm package is a thin Node launcher shim (6 files, about 66.7 kB unpacked; about
+  25 kB as a tarball) that spawns the Python CLI; it is not a second implementation, so
+  the Python package must be installed and on `PATH`. The npm 1.2.4 tarball carries
+  Sigstore attestations; the PyPI 1.2.4 upload has no PEP 740 attestation. From 1.2.5
+  onward, both registries publish through the attested workflow.
 
 ## Links
 
