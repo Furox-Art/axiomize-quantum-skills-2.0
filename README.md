@@ -218,10 +218,12 @@ in [benchmarks/rubric.md](benchmarks/rubric.md) is not recorded for these cases;
   trust. See [SECURITY.md](SECURITY.md) and [docs/security.md](docs/security.md).
 - **The npm package is a launcher shim, not a second implementation.** It is 6 files,
   about 66.7 kB unpacked (about 25 kB as a tarball), and it does one thing: spawn the
-  Python CLI. If the Python package is not
-  installed, `npx axiomize-quantum` exits `127` with a message telling you to install it.
-  There is no JavaScript engine here; use the `axiomize` console script or `python -m
-  axiomize.cli` directly if you do not want the extra hop.
+  Python CLI. If the Python package is not installed, the launcher propagates Python's
+  `ModuleNotFoundError`, which exits `1`; `npx axiomize-quantum` exits `127` only when no
+  Python interpreter can be launched at all, and says which interpreter it tried. Set
+  `AXIOMIZE_PYTHON` to pick one explicitly. There is no JavaScript engine here; use the
+  `axiomize` console script or `python -m axiomize.cli` directly if you do not want the
+  extra hop.
 - npm also still holds `2.0.0`, published before the launcher fix, whose `index.js` is the
   old syntactically invalid one. It is **not** the `latest` dist-tag any more, so a plain
   `npm install axiomize-quantum-skills-2.0` resolves to the current release. If you have pinned or

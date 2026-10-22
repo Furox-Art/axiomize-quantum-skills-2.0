@@ -47,8 +47,9 @@ function runAxiomizeQuantum(args) {
 
   child.on('error', (err) => {
     process.stderr.write(
-      `axiomize-quantum: failed to launch '${command}': ${err.message}\n` +
-        'Install the Python package first: pip install axiomize-quantum-skills-2.0\n',
+      `axiomize-quantum: could not launch '${command}': ${err.message}\n` +
+        'Set AXIOMIZE_PYTHON to a Python 3.10+ interpreter, or install Python.\n' +
+        'The engine itself installs with: pip install axiomize-quantum-skills-2.0\n',
     );
     process.exitCode = 127;
   });

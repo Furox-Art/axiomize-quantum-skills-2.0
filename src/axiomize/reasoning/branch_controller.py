@@ -248,7 +248,8 @@ def diversity_ratio(
     """Fraction of pairwise comparisons that are materially distinct.
 
     Similarity values must be in [0, 1]. A pair at or above the duplicate threshold
-    is treated as correlated/redundant for this diagnostic.
+    is treated as correlated/redundant for this diagnostic. An empty sequence
+    returns 1.0 by convention: with no observed pair, no redundancy was observed.
     """
     if not pairwise_similarities:
         return 1.0
