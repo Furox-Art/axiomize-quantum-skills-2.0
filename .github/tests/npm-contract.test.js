@@ -359,10 +359,13 @@ test('OIDC mode publishes with provenance and the explicit dist-tag', () => {
     /--provenance/,
     'OIDC mode must publish with --provenance so the tarball is attested',
   );
+  // The registry holds 2.0.0, which sorts above the 1.x line, so npm 11 refuses
+  // to imply a dist-tag. The tag must be explicit, and it is chosen by the
+  // dist-tag step so a prerelease never moves `latest`.
   assert.match(
     command,
-    /--tag latest/,
-    'the registry holds 2.0.0, which sorts above this version, so --tag latest is required',
+    /--tag "\$\{\{ steps\.disttag\.outputs\.tag \}\}"/,
+    'OIDC mode must pass the explicit dist-tag chosen by the dist-tag step',
   );
   assert.doesNotMatch(
     command,
@@ -387,8 +390,8 @@ test('token mode publishes without provenance and with the explicit dist-tag', (
   );
   assert.match(
     command,
-    /--tag latest/,
-    'token mode must also pass --tag latest explicitly',
+    /--tag "\$\{\{ steps\.disttag\.outputs\.tag \}\}"/,
+    'token mode must also pass the explicit dist-tag chosen by the dist-tag step',
   );
 
   // And the credential itself, in the environment rather than inline, so it is
@@ -397,6 +400,26 @@ test('token mode publishes without provenance and with the explicit dist-tag', (
     step,
     /NODE_AUTH_TOKEN:\s*\$\{\{\s*secrets\.NPM_TOKEN\s*\}\}/,
     'token mode must pass NPM_TOKEN as NODE_AUTH_TOKEN from the secret',
+  );
+});
+
+test('the dist-tag step keeps latest for stable versions and next for prereleases', () => {
+  const source = read(PUBLISH_WORKFLOW);
+  const step = stepBody(source, 'Choose the dist-tag');
+
+  assert.match(step, /id:\s*disttag/, 'the step must expose its choice as a step output');
+  assert.match(
+    step,
+    /steps\.pkg\.outputs\.version/,
+    'the tag must be derived from the version about to be published',
+  );
+  assert.match(step, /\*-\*/, 'a hyphen in the version marks a prerelease');
+  assert.match(step, /tag=next/, 'a prerelease must publish under next, not latest');
+  assert.match(step, /tag=latest/, 'a stable release must publish under latest');
+  assert.match(
+    step,
+    /echo "tag=\$tag" >> "\$GITHUB_OUTPUT"/,
+    'the chosen tag must reach the publish steps through GITHUB_OUTPUT',
   );
 });
 

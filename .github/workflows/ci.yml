@@ -274,11 +274,13 @@ jobs:
         run: python -m pip install -r requirements-test.txt
       - name: Install axiomize (editable) for import-based tests
         run: python -m pip install -e . --no-deps
-      # `-m 'not network'` deselects the one live-socket REST parity test, whose
-      # hardcoded 1000-sample Monte Carlo costs ~30s per call. It is not flaky:
-      # it passes untraced in the `validate` matrix on every supported
-      # interpreter, and the marker exists for cost, not reliability. The scope
-      # comes from [tool.coverage.run] and now includes
+      # The ratchet runs the full suite, including the one live-socket REST
+      # parity test (marked `network`, ~30s per call): dropping it can lower the
+      # measured branch coverage, and the ratchet only allows the floor to rise.
+      # It is not flaky; it passes untraced in the `validate` matrix on every
+      # supported interpreter, and the marker exists for cost, not reliability.
+      # To skip it, pass --pytest-args "-m 'not network'" and re-measure. The
+      # scope comes from [tool.coverage.run] and now includes
       # skills/axiomize/tools, which the wheel ships and the previous
       # `--cov=axiomize` silently omitted.
       - name: Enforce the non-decreasing coverage floor
