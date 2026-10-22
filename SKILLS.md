@@ -11,7 +11,7 @@ the engine exposes deterministic reference implementations under `src/axiomize/`
 Quantum reasoning skill folder (`skills/quantum-reasoning/`):
 
 - `SKILL.md` — model-facing protocol
-- `VERSION` — protocol version (0.3.1 content, shipped inside 2.0.0)
+- `VERSION` — protocol version (0.3.1 content)
 - `docs/MEASUREMENT.md` — auditable formulas and thresholds
 - `docs/COMPATIBILITY.md` — host compatibility contract
 - `examples/usage.md`, `examples/host-integration.md` — task and host integration examples
