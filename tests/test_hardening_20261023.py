@@ -10,14 +10,14 @@ from pathlib import Path
 
 import pytest
 
+from axiomize import dependency_policy
 from axiomize.reasoning.benchmark import evaluate
 from axiomize.reasoning.branch_controller import normalized_entropy
 from axiomize.reasoning.cli import main as reasoning_main
 from axiomize.runs.state import RunState
 from axiomize.server import rest_server
 
-AUTH = {"Authorization": "Bearer operator-token-0123456789",
-        "Content-Type": "application/json"}
+AUTH = {"Authorization": "Bearer operator-token-0123456789", "Content-Type": "application/json"}
 
 
 def _server(tmp_path: Path) -> rest_server.BoundedThreadingHTTPServer:
@@ -34,7 +34,9 @@ def _server(tmp_path: Path) -> rest_server.BoundedThreadingHTTPServer:
 def _http(server, route, *, method="GET", payload=None, headers=None):
     request = urllib.request.Request(
         f"http://127.0.0.1:{server.server_port}{route}",
-        data=json.dumps(payload).encode() if payload is not None else (b"" if method == "POST" else None),
+        data=json.dumps(payload).encode()
+        if payload is not None
+        else (b"" if method == "POST" else None),
         headers={"Accept": "application/json", **(headers or {})},
         method=method,
     )
@@ -119,9 +121,7 @@ def test_benchmark_rejects_non_finite_required_measurements(field: str) -> None:
 
 def test_benchmark_rejects_non_finite_telemetry() -> None:
     with pytest.raises(ValueError, match="not finite"):
-        evaluate.validate_result(
-            _result(branches_total=2, branches_distinct=float("inf"))
-        )
+        evaluate.validate_result(_result(branches_total=2, branches_distinct=float("inf")))
 
 
 def test_benchmark_rejects_boolean_measurements() -> None:
@@ -151,17 +151,26 @@ def test_benchmark_rejects_half_recorded_telemetry_pairs(fields: dict) -> None:
 def test_benchmark_output_never_contains_nan(tmp_path: Path, capsys) -> None:
     cases = tmp_path / "cases.jsonl"
     cases.write_text(
-        json.dumps({"id": "c1", "domain": "math", "prompt": "1+1?",
-                    "accepted_answers": ["2"]}) + "\n",
+        json.dumps({"id": "c1", "domain": "math", "prompt": "1+1?", "accepted_answers": ["2"]})
+        + "\n",
         encoding="utf-8",
     )
     skill = tmp_path / "skill.jsonl"
     skill.write_text(
-        json.dumps({"case_id": "c1", "answer": "2", "tokens": 1,
-                    "tool_calls": 0, "latency_ms": 1}) + "\n",
+        json.dumps({"case_id": "c1", "answer": "2", "tokens": 1, "tool_calls": 0, "latency_ms": 1})
+        + "\n",
         encoding="utf-8",
     )
     assert evaluate.main(["--cases", str(cases), "--skill", str(skill)]) == 0
     out = capsys.readouterr().out
     assert "NaN" not in out and "Infinity" not in out
     json.loads(out)
+
+
+def test_ensure_finite_rejects_an_infinite_metric() -> None:
+    with pytest.raises(ValueError, match="latency is not finite"):
+        evaluate.ensure_finite(float("inf"), "latency")
+
+
+def test_installed_version_is_absent_for_an_uninstalled_distribution() -> None:
+    assert dependency_policy._installed_version("axiomize-not-installed-2026") is None
