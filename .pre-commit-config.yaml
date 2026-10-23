@@ -1,0 +1,19 @@
+# Non-modifying hooks only. No formatter or fixer runs here, so a pre-commit
+# run can never rewrite the tree; every hook either passes or reports a
+# violation for a human to fix.
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: 3e8a8703264a2f4a69428a0aa4dcb512790b2c8c  # v6.0.0
+    hooks:
+      - id: check-added-large-files
+      - id: check-merge-conflict
+      - id: check-yaml
+      - id: check-toml
+      - id: check-ast
+      - id: detect-private-key
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    # Ruff 0.16.9 is the version pinned by .github/workflows/ci.yml and
+    # release.yml.
+    rev: a56c0b927e6465d37cae3e97d35d4d18ab2b96cd  # v0.16.9
+    hooks:
+      - id: ruff
