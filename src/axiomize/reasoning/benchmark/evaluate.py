@@ -62,6 +62,28 @@ def validate_case(case: dict[str, Any]) -> None:
         raise ValueError(f"case {case['id']!r}: accepted_answers must be a non-empty list")
 
 
+def _validate_measurement(result: dict[str, Any], field: str) -> None:
+    """Refuse a measurement that is not a finite non-negative number.
+
+    `json.loads` accepts the non-standard `NaN`/`Infinity` tokens, and
+    `float("nan") < 0` is False, so without this check a NaN measurement
+    passed validation and only failed later when the summary was rendered.
+    Booleans are refused too: `isinstance(True, int)` is True in Python, but
+    a boolean is not a token count.
+    """
+    value = result[field]
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValueError(f"result {result['case_id']!r}: {field} must be non-negative")
+    try:
+        finite = math.isfinite(value)
+    except OverflowError:
+        finite = False
+    if not finite:
+        raise ValueError(f"result {result['case_id']!r}: {field} is not finite")
+    if value < 0:
+        raise ValueError(f"result {result['case_id']!r}: {field} must be non-negative")
+
+
 def validate_result(result: dict[str, Any]) -> None:
     missing = REQUIRED_RESULT_FIELDS - set(result)
     if missing:
@@ -70,16 +92,21 @@ def validate_result(result: dict[str, Any]) -> None:
             + ", ".join(sorted(missing))
         )
     for field in ("tokens", "tool_calls", "latency_ms"):
-        value = result[field]
-        if not isinstance(value, (int, float)) or value < 0:
-            raise ValueError(f"result {result['case_id']!r}: {field} must be non-negative")
+        _validate_measurement(result, field)
     for field in OPTIONAL_TELEMETRY_FIELDS:
         if field in result:
-            value = result[field]
-            if not isinstance(value, (int, float)) or value < 0:
-                raise ValueError(
-                    f"result {result['case_id']!r}: {field} must be non-negative"
-                )
+            _validate_measurement(result, field)
+    # A half-recorded pair would be silently dropped from the aggregate, so a
+    # runner that forgets one side loses that case without any warning.
+    for first, second in (
+        ("branches_total", "branches_distinct"),
+        ("contradictions_found", "contradictions_resolved"),
+    ):
+        if (first in result) != (second in result):
+            raise ValueError(
+                f"result {result['case_id']!r}: {first} and {second} must be "
+                "provided together"
+            )
     if "branches_distinct" in result and "branches_total" in result:
         if result["branches_distinct"] > result["branches_total"]:
             raise ValueError(
@@ -245,7 +272,7 @@ def main(argv: list[str] | None = None) -> int:
             for key, value in section.items():
                 ensure_finite(value, f"{section_name}.{key}")
 
-    rendered = json.dumps(payload, indent=2, sort_keys=True)
+    rendered = json.dumps(payload, indent=2, sort_keys=True, allow_nan=False)
     print(rendered)
     if args.output:
         args.output.parent.mkdir(parents=True, exist_ok=True)

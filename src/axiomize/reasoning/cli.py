@@ -10,8 +10,8 @@ from axiomize.reasoning.branch_controller import (
     BranchMetrics,
     BranchState,
     collapse_decision,
+    normalized_entropy,
     recommended_width,
-    uncertainty_from_branches,
 )
 from axiomize.workflow.reasoning_adapter import ModelCandidate, select_model
 
@@ -43,11 +43,14 @@ def _cmd_select(args: argparse.Namespace) -> int:
 
 
 def _cmd_width(args: argparse.Namespace) -> int:
-    branches = [
-        Branch(branch_id=f"b{i}", metrics=BranchMetrics(*( [v] * 9 )), state=BranchState.ACTIVE)
-        for i, v in enumerate(args.scores)
-    ]
-    uncertainty = uncertainty_from_branches(branches)
+    scores = list(args.scores)
+    if any(not 0.0 <= value <= 1.0 for value in scores):
+        raise SystemExit("width scores must each be in [0, 1]")
+    # The arguments are branch support scores, not a bag of metrics. Treating
+    # each score as every BranchMetrics field (including the negative-weight
+    # contradiction and cost fields) distorted the distribution before the
+    # entropy was taken, so the reported width did not follow the scores.
+    uncertainty = normalized_entropy(scores)
     low, high = recommended_width(uncertainty)
     print(json.dumps({"uncertainty": uncertainty, "recommended_width": [low, high]}, indent=2))
     return 0

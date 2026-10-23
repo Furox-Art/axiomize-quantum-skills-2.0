@@ -93,7 +93,9 @@ Structured JSON in, structured JSON out (API v1). Tools that can be expensive
 
 The npm package is a **thin Node launcher shim for the same CLI** — six files, about
 66.7 kB unpacked (about 25 kB as a tarball), and no engine of its own. It requires the
-Python package; without it the launcher exits `127` and tells you so.
+Python package; without it, Python exits `1` with `ModuleNotFoundError` and the launcher
+propagates that code. The launcher exits `127` only when the interpreter itself cannot
+be launched, and names the command it tried; set `AXIOMIZE_PYTHON` to override it.
 
 ```bash
 pip install axiomize-quantum-skills-2.0
