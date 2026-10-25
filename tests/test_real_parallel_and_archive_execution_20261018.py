@@ -43,7 +43,7 @@ def test_actual_sir_ode_final_size_is_physical_and_monotonic_in_beta():
 
 
 def test_actual_stochastic_chunk_is_reproducible_with_frozen_seed():
-    args = (0.3, 0.1, 1, 5000, 20, 1001)
+    args = (0.3, 0.1, 1, 5000, 0, 20, 1001)
     first = parallel_sweep.gillespie_chunk(args)
     second = parallel_sweep.gillespie_chunk(args)
     assert first == second
@@ -55,7 +55,7 @@ def test_actual_stochastic_chunk_is_reproducible_with_frozen_seed():
 def test_zero_rate_stochastic_process_does_not_divide_by_zero():
     # With beta=gamma=0 the competing-hazard clock has no events.
     # The simulator must stop cleanly instead of sampling Exp(1/0).
-    assert parallel_sweep.gillespie_chunk((0.0, 0.0, 1, 5000, 4, 1001)) == 4
+    assert parallel_sweep.gillespie_chunk((0.0, 0.0, 1, 5000, 0, 4, 1001)) == 4
 
 
 def test_real_multiprocess_grid_matches_analytical_final_size(capsys):
