@@ -599,3 +599,48 @@ test('the manual-run reason reaches the shell through the environment', () => {
   assert.doesNotMatch(step, /run:[^\n]*\$\{\{\s*inputs\.reason/,
     'the reason expression must not appear on a run: line');
 });
+
+test('publish checkout keeps history for the version-content guard', () => {
+  const source = read(PUBLISH_WORKFLOW);
+  // The guard walks `git rev-list --first-parent` back to the version-bump
+  // commit; a depth-1 clone cannot reach it.
+  assert.match(
+    source,
+    /- uses: actions\/checkout@[^\n]+\n\s+with:\n(?:\s*#[^\n]*\n)*\s+fetch-depth:\s*0/,
+    'the publish checkout must fetch full history for the version-content guard',
+  );
+});
+
+test('refuses to publish content newer than the version bump', () => {
+  const source = read(PUBLISH_WORKFLOW);
+  const step = stepBody(source, 'Refuse to publish content newer than the version bump');
+
+  // The gate above already makes re-runs idempotent; the guard only speaks for
+  // uploads that are actually about to happen.
+  assert.match(
+    step,
+    /if: steps\.gate\.outputs\.skip != 'true'/,
+    'an already-published version publishes nothing, so the guard must be skipped',
+  );
+  assert.match(step, /"rev-list", "--first-parent", "HEAD"/);
+  assert.match(step, /"pack", "--dry-run", "--json"/);
+  assert.match(step, /packed files differ from/);
+  assert.match(
+    step,
+    /Bump the version and release the new content instead\./,
+    'a refusal must say how to release the newer content',
+  );
+
+  const guardIndex = source.indexOf('- name: Refuse to publish content newer than the version bump');
+  const gateIndex = source.indexOf('- name: Check whether this version already exists on the registry');
+  assert.ok(gateIndex !== -1 && gateIndex < guardIndex,
+    'the guard must run after the already-published gate');
+  assert.ok(
+    guardIndex < source.indexOf('- name: Publish to npm with OIDC Trusted Publishing'),
+    'the guard must run before the OIDC publish',
+  );
+  assert.ok(
+    guardIndex < source.indexOf('- name: Publish to npm with the NPM_TOKEN secret'),
+    'the guard must run before the token publish',
+  );
+});
