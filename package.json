@@ -30,7 +30,15 @@
     "simulation",
     "quantum-inspired",
     "multi-branch",
-    "scientific-computing"
+    "scientific-computing",
+    "axiomize",
+    "modelica",
+    "sbml",
+    "cellml",
+    "uncertainty-quantification",
+    "agent-skills",
+    "mcp",
+    "reasoning"
   ],
   "author": "Furox-Art",
   "license": "MIT",
