@@ -245,6 +245,21 @@ The published site carries 20 pages; the `mkdocs.yml` nav is the source of truth
 The workflow, rigor and archetypes pages are staged into `docs/` from `skills/axiomize/` at
 build time; their repository paths are `skills/axiomize/{SKILL,adaptive-workflow,rigor,archetypes}.md`.
 
+## Related projects
+
+Part of the Furox scientific-computing portfolio — eleven independently versioned projects that pair agent-facing interfaces (MCP servers and Agent Skills) with deterministic, fail-closed verification.
+
+- [scientific-computing-system](https://github.com/Furox-Art/scientific-computing-system) — zero-dependency Python numerics with run manifests.
+- [scientific-computing-system-2.0](https://github.com/Furox-Art/scientific-computing-system-2.0) — NumPy/SciPy/pandas build with replayable fit provenance.
+- [scientific-toolkit](https://github.com/Furox-Art/scientific-toolkit) — MCP gateway over nine research tools.
+- [axiomize](https://github.com/Furox-Art/axiomize) — unit-checked modeling engine with SBML, CellML and Modelica export.
+- [quantum-reasoning-skill](https://github.com/Furox-Art/quantum-reasoning-skill) — agent skill that keeps competing hypotheses alive.
+- [plan-auditor](https://github.com/Furox-Art/plan-auditor) — evidence-based completion gate for coding agents.
+- [nomosguard](https://github.com/Furox-Art/nomosguard) — deterministic security decision layer with a hash-chained ledger.
+- [eq-layer](https://github.com/Furox-Art/eq-layer) — interaction-policy layer that decides how an agent speaks.
+- [literature-evidence-mcp](https://github.com/Furox-Art/literature-evidence-mcp) — provenance-first literature MCP server.
+- [repocraft](https://github.com/Furox-Art/repocraft) — byte-deterministic project scaffolding.
+
 ## Contributing, citing, licence
 
 [CONTRIBUTING.md](CONTRIBUTING.md) has the perspective and example contracts;
