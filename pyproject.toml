@@ -4,12 +4,12 @@ build-backend = "hatchling.build"
 
 [project]
 name = "axiomize-quantum-skills-2.0"
-version = "1.2.5"
+version = "1.2.6"
 description = "Axiomize 2.0: scientific modeling engine plus quantum-inspired multi-branch reasoning and Model IR selection"
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 authors = [
     { name = "Furox-Art", email = "177975472+Furox-Art@users.noreply.github.com" },
 ]
@@ -26,7 +26,6 @@ classifiers = [
     "Intended Audience :: Developers",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
@@ -112,7 +111,7 @@ exclude = [
 # deliberately NOT enabled: turning them on without first fixing the code would
 # mean a permanently red gate, which is worse than a narrow honest one. Widen
 # this list in a PR that also cleans up the violations it surfaces.
-target-version = "py310"
+target-version = "py311"
 line-length = 100
 extend-exclude = [".mypy_cache", ".pytest_cache", ".ruff_cache", "dist", "site", "node_modules"]
 

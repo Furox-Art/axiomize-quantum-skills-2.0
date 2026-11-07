@@ -157,14 +157,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # 3.10 is the floor declared by requires-python and 3.14 is the newest
-        # release, so both ends are exercised. The 3.10/3.14 rows are Linux-only
+        # 3.11 is the floor declared by requires-python and 3.14 is the newest
+        # release, so both ends are exercised. The 3.11/3.14 rows are Linux-only
         # to keep the matrix affordable; the middle versions also run on Windows
         # because the repository's own history shows platform-specific failures
         # (a live-socket abort, a Lean-toolchain skip) that Linux alone will not
         # surface.
         os: [ubuntu-latest]
-        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+        python-version: ["3.11", "3.12", "3.13", "3.14"]
         include:
           - os: windows-latest
             python-version: "3.12"
