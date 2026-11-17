@@ -5,7 +5,7 @@ This is not a separate product. It ships [axiomize](https://github.com/Furox-Art
 Current package line: **1.2.6**
 
 ![License](https://img.shields.io/badge/license-MIT-blue)
-![Python](https://img.shields.io/python-3.10%2B-blue)
+![Python](https://img.shields.io/badge/python-3.11%2B-blue)
 ![CI](https://github.com/Furox-Art/axiomize-quantum-skills-2.0/actions/workflows/ci.yml/badge.svg)
 [![PyPI](https://img.shields.io/pypi/v/axiomize-quantum-skills-2.0)](https://pypi.org/project/axiomize-quantum-skills-2.0/)
 [![npm](https://img.shields.io/npm/v/axiomize-quantum-skills-2.0)](https://www.npmjs.com/package/axiomize-quantum-skills-2.0)
