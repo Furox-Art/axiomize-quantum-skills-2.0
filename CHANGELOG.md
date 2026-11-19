@@ -2,6 +2,80 @@
 
 All notable changes to Axiomize are documented here. Axiomize follows semantic versioning; release claims are tied to exact-wheel CI/release evidence.
 
+## [1.2.7] - 2026-11-20
+
+### Fixed (documentation)
+
+- README Python floor corrected: the install line and the Python badge said
+  `3.10+` while `requires-python` has been `>=3.11` since 1.2.6. Both now say
+  3.11, pinned by `tests/test_type_baseline_fixes.py`. The same stale floor in
+  `docs/index.md`, `docs/tutorial.md` and the npm launcher's spawn-error
+  guidance (`index.js`) is corrected too; a new npm contract test derives the
+  floor from `requires-python` so the message cannot drift again.
+- Quickstart currency claims that still named `1.2.5` now follow the release
+  line (the historical "verified against 1.2.0 at 9c2990c" provenance is kept
+  as a historical record, per the release-contract rule). The attestation-claims
+  guard flagged the same stale current-line claims in `docs/index.md`,
+  `docs/integrations.md`, `docs/tutorial.md`, `docs/publishing-checklist.md`
+  and `SECURITY.md`; all are re-stamped to 1.2.7 and the guard passes.
+- The `pyproject.toml` comment claiming "the wheel ships no `py.typed` marker"
+  contradicted the tracked `src/axiomize/py.typed` file and the actual build:
+  hatchling ships the marker because it lives inside the declared package
+  directory. The comment now states the truth, and
+  `.github/scripts/package_contents_smoke.py` asserts `axiomize/py.typed` in
+  the wheel and `src/axiomize/py.typed` in the sdist so the claim cannot drift
+  back. No typing surface changed: the marker already shipped in 1.2.6.
+
+### Fixed (typing)
+
+- Seventeen cheap findings removed from the mypy baseline without behaviour
+  change: builtin-`bool` return in `bayesian/likelihoods.py`, annotated policy
+  dispatch in `reasoning/ablation.py`, `compiled_events`/`compiled` annotations
+  and a `lo`/`hi` rename in `advanced_family_engine.py`, walrus narrowing and
+  `dict[str, Any]` result annotations in `general_engine_core.py`, annotated
+  dispatch kwargs in `numerical_verification_v2.py`, and `jax`/`arviz`/
+  `cds.diffeq` added to the existing optional-backend `ignore_missing_imports`
+  override (the same category as the already-listed `pymc`/`fenics`).
+  `.github/mypy-baseline.txt` ratchets `src/axiomize` 41 -> 24 (worst-case
+  platform count; Linux measures fewer because `resource` exists there).
+  Regression pins: `tests/test_type_baseline_fixes.py`. The remaining findings
+  (sandbox `resource` attributes, the facade re-exports, numpy narrowing in
+  `bayesian/engine_v2.py` and the advanced engine, the dual-mode
+  `validate_submission` import) need structural changes and stay baselined.
+
+### Added
+
+- `axiomize.reasoning.reliability`: a **synthetic** score-outcome reliability
+  diagnostic (`python -m axiomize.reasoning.reliability`). It pairs the branch
+  controller's decision confidence with known ground truth on the same seeded
+  synthetic episodes as the ablation and reports reliability-diagram bins,
+  ECE/MCE and Brier score. Every payload and the committed report
+  `benchmarks/reports/reasoning-reliability.md` carry the explicit label
+  `synthetic-diagnostic` and the disclaimer that this is **not calibration
+  evidence on real tasks**. Tests: `tests/test_reasoning_reliability.py`
+  (100% statement and branch coverage of the new module).
+- README "Reasoning evidence (synthetic only)" section and an Honest-limits
+  bullet: the hard-regime finding is stated plainly (0.388 accuracy at ~2.4x
+  the beam baseline's observation cost, 47.8 vs 20.0 branch-observations), and
+  the real-task validation protocol is documented as PENDING.
+
+### Not claimed
+
+- **No real-task or LLM validation was performed.** The 1.2.7 audit had no LLM
+  API access, so the pending protocol (real tasks, live agent runs, recorded
+  transcripts, independently graded outcomes, then the same binning on real
+  (confidence, outcome) pairs) was not executed. The synthetic diagnostic is a
+  consistency check inside a synthetic environment; its numbers must not be
+  quoted as real-task calibration evidence.
+- No public API, CLI, REST, MCP or schema change: the diagnostic is a new
+  module with a `python -m` entry point, following the ablation precedent.
+  `DEFAULT_THRESHOLDS` and all controller semantics are unchanged.
+
+### Housekeeping
+
+- `package-lock.json` re-synced to the release version (it still said 1.2.5
+  while `package.json` said 1.2.6; `npm ci` in CI reads the lockfile).
+
 ## [1.2.6] - 2026-11-07
 
 ### Changed

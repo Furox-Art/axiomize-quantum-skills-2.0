@@ -69,7 +69,7 @@ Three mechanisms are easy to confuse, and only the third is build provenance:
 | Build attestation | A named CI workflow, repository and commit produced the artifact. | That the build was correct. |
 
 Verify by hand. The 1.2.3 examples below are historical but still resolvable; substitute
-the published 1.2.5 artifacts to check the current release:
+the published 1.2.7 artifacts to check the current release:
 
 ```bash
 # npm: two bundles, including a full SLSA v1 build provenance statement

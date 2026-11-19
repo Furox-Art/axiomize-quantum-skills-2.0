@@ -2,10 +2,10 @@
 
 This is not a separate product. It ships [axiomize](https://github.com/Furox-Art/axiomize) and [quantum-reasoning-skill](https://github.com/Furox-Art/quantum-reasoning-skill) together. Install those repositories when you need only one of them. This repository is not a second MCP registration.
 
-Current package line: **1.2.6**
+Current package line: **1.2.7**
 
 ![License](https://img.shields.io/badge/license-MIT-blue)
-![Python](https://img.shields.io/python-3.10%2B-blue)
+![Python](https://img.shields.io/python-3.11%2B-blue)
 ![CI](https://github.com/Furox-Art/axiomize-quantum-skills-2.0/actions/workflows/ci.yml/badge.svg)
 [![PyPI](https://img.shields.io/pypi/v/axiomize-quantum-skills-2.0)](https://pypi.org/project/axiomize-quantum-skills-2.0/)
 [![npm](https://img.shields.io/npm/v/axiomize-quantum-skills-2.0)](https://www.npmjs.com/package/axiomize-quantum-skills-2.0)
@@ -51,12 +51,12 @@ static snapshot at full resolution, and the LaTeX sample it converts to, are in
 
 ## Quick start (verified against 1.2.0)
 
-The current package line is 1.2.5. The commands below were last re-verified against 1.2.0
-at commit `9c2990c`; that verification is a historical record, not a claim about 1.2.5.
+The current package line is 1.2.7. The commands below were last re-verified against 1.2.0
+at commit `9c2990c`; that verification is a historical record, not a claim about 1.2.7.
 
 ### Install
 
-`pip install axiomize-quantum-skills-2.0`. Python 3.10+. NumPy, SciPy, SymPy, NetworkX,
+`pip install axiomize-quantum-skills-2.0`. Python 3.11+. NumPy, SciPy, SymPy, NetworkX,
 statsmodels, Matplotlib, Control, CVXPY, CasADi and z3-solver come along automatically.
 
 ### 1. See what is actually installed
@@ -75,7 +75,7 @@ fenics                  UNAVAILABLE (fenics not installed)
 ```
 
 The full list has 13 entries. `axiomize capabilities` is the machine-readable equivalent and
-leads with `"axiomize_version": "1.2.6"`.
+leads with `"axiomize_version": "1.2.7"`.
 
 ### 2. Run the install-safe benchmark suite
 
@@ -132,7 +132,7 @@ high evidence. The other two subcommands are `select` (rank model candidates fro
 
 Every command above was run against `axiomize-quantum-skills-2.0` 1.2.0 at commit `9c2990c`
 on CPython 3.12.10 (Windows); that is a historical verification record. The current package
-line is 1.2.5. [docs/tutorial.md](docs/tutorial.md) is the full walkthrough with real output
+line is 1.2.7. [docs/tutorial.md](docs/tutorial.md) is the full walkthrough with real output
 for each step.
 
 ## Interfaces
@@ -205,8 +205,38 @@ structurally perfect report about a wrong model still scores 10.0/10. The human 
 in [benchmarks/rubric.md](benchmarks/rubric.md) is not recorded for these cases; see
 [docs/benchmark-results.md](docs/benchmark-results.md) for the provenance-stamped run.
 
+## Reasoning evidence (synthetic only)
+
+All reasoning measurements in this repository come from **deterministic synthetic
+episodes with known ground truth — no LLM is called**. Two artifacts:
+
+- [benchmarks/reports/reasoning-ablation.md](benchmarks/reports/reasoning-ablation.md) —
+  branch controller vs argmax/beam baselines (`python -m axiomize.reasoning.ablation`).
+  Honest headline: in the hard regime (20% regime-shift episodes) the controller reaches
+  **0.388 accuracy** — better than beam (0.285) and argmax (0.230), but far from solved —
+  and pays **~2.4× the beam baseline's observation cost** (47.8 vs 20.0 branch-observations
+  per episode). The edge is bought with extra observations, not free.
+- [benchmarks/reports/reasoning-reliability.md](benchmarks/reports/reasoning-reliability.md) —
+  score↔outcome reliability diagnostic (`python -m axiomize.reasoning.reliability`):
+  reliability-diagram bins, ECE/MCE and Brier score pairing the controller's decision
+  confidence with the synthetic ground truth. **This is a synthetic consistency
+  diagnostic, not calibration evidence on real tasks.** A low ECE here does not show the
+  controller is calibrated for real agent workloads.
+
+**Pending real-task protocol (not executed):** real tasks with independently verifiable
+outcomes → live LLM agent runs under the branch-control protocol with recorded transcripts
+and per-decision confidence → outcomes graded independently of the agent → the same
+binning applied to real (confidence, outcome) pairs. Only then may calibration claims be
+made. The 1.2.7 audit had no LLM API access, so this protocol is PENDING and no real-task
+result is claimed.
+
 ## Honest limits
 
+- **Reasoning evidence is synthetic.** The ablation and reliability diagnostics run on
+  seeded synthetic episodes with known answers, not on real tasks with a live LLM.
+  Hard-regime accuracy is 0.388 at ~2.4× beam's observation cost, and the reliability
+  diagnostic is a score↔outcome consistency check, not real-task calibration proof. The
+  real-task validation protocol is documented under "Reasoning evidence" and is PENDING.
 - The engine does not choose a model for you. `axiomize model --action plan` ranks
   candidate families and then returns `NEEDS_MODEL_IR`; deterministic execution starts
   only after you supply an explicit Model IR.

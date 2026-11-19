@@ -534,8 +534,11 @@ def _solve_optimization(model: ModelIR, *, t_span: tuple[float, float], points: 
     x0 = np.asarray([float(v.initial) if v.initial is not None else 0.0 for v in decisions], dtype=float)
     bounds = []
     for variable in decisions:
-        low, high = variable.bounds if variable.bounds is not None else (None, None)
-        bounds.append((None if low is None else float(low), None if high is None else float(high)))
+        # lo/hi, not low/high: `high` is already bound to float in the
+        # relation='between' branch above, and re-binding it to float | None
+        # here is an assignment-type error (fixed in 1.2.7, semantics unchanged).
+        lo, hi = variable.bounds if variable.bounds is not None else (None, None)
+        bounds.append((None if lo is None else float(lo), None if hi is None else float(hi)))
     attempts: list[dict[str, Any]] = []
     solved = None
     methods = [str(model.solver.method)] if model.solver.method not in {"", "auto"} else []
@@ -1090,7 +1093,7 @@ def _simulate_discrete_event(model: ModelIR, *, t_span: tuple[float, float], poi
     names = [v.name for v in state_vars]
     pnames = [p.name for p in model.parameters]
     args = [model.independent_variable, *names, *pnames]
-    compiled_events = []
+    compiled_events: list[tuple[str, Callable[..., Any], dict[str, Any]]] = []
     for event in events:
         if not isinstance(event, dict) or "rate" not in event or not isinstance(event.get("delta"), dict):
             raise ValueError("each discrete event needs rate and delta mapping")
@@ -1181,7 +1184,7 @@ def _simulate_hybrid(model: ModelIR, *, t_span: tuple[float, float], points: int
     raw_events = cfg.get("events", [])
     if not isinstance(raw_events, list):
         raise ValueError("hybrid.events must be an array")
-    compiled = []
+    compiled: list[dict[str, Any]] = []
     for event in raw_events:
         if not isinstance(event, dict) or "expression" not in event:
             raise ValueError("each hybrid event requires expression")

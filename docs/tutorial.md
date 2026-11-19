@@ -3,7 +3,7 @@
 A beginner walkthrough. Every command in this page was executed against
 `axiomize-quantum-skills-2.0` **1.2.0** at commit `9c2990c` on CPython 3.12.10 (Windows),
 with numpy 2.5.3 and scipy 1.18.1. That verification is a historical record; the current
-package line is 1.2.5. If a command here stops working, that is a documentation bug worth
+package line is 1.2.7. If a command here stops working, that is a documentation bug worth
 reporting.
 
 There are two ways in. **Track A** installs the Python engine. **Track B** installs the
@@ -19,7 +19,7 @@ Markdown skill for an AI agent. They are independent; many people use both.
 pip install axiomize-quantum-skills-2.0
 ```
 
-Python 3.10 or newer. This pulls in NumPy, SciPy, SymPy, NetworkX, statsmodels,
+Python 3.11 or newer. This pulls in NumPy, SciPy, SymPy, NetworkX, statsmodels,
 Matplotlib, Control, CVXPY, CasADi and z3-solver. Optional extras:
 
 ```bash
@@ -327,5 +327,5 @@ Fitted values come back with confidence intervals and explicit fit-quality score
 | `request requires a model_ir (or model) JSON object` | Your JSON needs a `model_ir` wrapper object, not a bare model. Copy `docs/quickstart-model-ir.json` |
 | `needs a model_ir ... JSONDecodeError: Unexpected UTF-8 BOM` | Your editor wrote a UTF-8 BOM. Save as plain UTF-8, no BOM |
 | `MigrationApprovalRequired` | Your IR uses a legacy field layout. Re-run with `--approve-migration` to see the preview diff, then update |
-| `npx axiomize-quantum` exits `127` saying it could not launch | No Python 3.10+ interpreter was found. Install Python, or set `AXIOMIZE_PYTHON` to an existing interpreter; the engine itself installs with `pip install axiomize-quantum-skills-2.0` |
-| `npx axiomize-quantum` fails with `SyntaxError: Unexpected token ';'` | You have the superseded `2.0.0` pinned. `npm install axiomize-quantum-skills-2.0@1.2.5`, or check `npm view axiomize-quantum-skills-2.0 dist-tags` |
+| `npx axiomize-quantum` exits `127` saying it could not launch | No Python 3.11+ interpreter was found. Install Python, or set `AXIOMIZE_PYTHON` to an existing interpreter; the engine itself installs with `pip install axiomize-quantum-skills-2.0` |
+| `npx axiomize-quantum` fails with `SyntaxError: Unexpected token ';'` | You have the superseded `2.0.0` pinned. `npm install axiomize-quantum-skills-2.0@1.2.7`, or check `npm view axiomize-quantum-skills-2.0 dist-tags` |

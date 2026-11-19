@@ -39,6 +39,18 @@ class TestSCSIntegration:
 
 
 class TestCapabilities:
+    def test_capability_truthiness_follows_available_not_dict_content(self):
+        # A Capability is a non-empty dict even when the backend is absent;
+        # truthiness must follow `available`, never dict content. Pins the
+        # __bool__ contract (and its coverage) explicitly.
+        from axiomize.capabilities import Capability
+
+        assert not Capability(available=False, backend="absent")
+        assert Capability(available=True, backend="present")
+        assert not Capability()  # missing key defaults to False
+        assert bool(Capability(available=True)) is True
+        assert bool(Capability(available=False)) is False
+
     def test_capability_keys_present(self):
         caps = get_capabilities()
         for key in ("symbolic_math", "numerical_computing", "bayesian_inference",

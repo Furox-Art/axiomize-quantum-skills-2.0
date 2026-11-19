@@ -107,6 +107,20 @@ test('launcher propagates the child exit code', () => {
   assert.match(source, /child\.on\(\s*['"]error['"]/, 'index.js must handle spawn errors');
 });
 
+test('launcher spawn-error guidance names the supported Python floor', () => {
+  // The guidance used to say "Python 3.10+" after requires-python moved to
+  // >=3.11, sending users without a working interpreter to the wrong floor.
+  // Derive the floor from pyproject so the message cannot drift again.
+  const source = read('index.js');
+  const pyproject = read('pyproject.toml');
+  const floor = /^requires-python\s*=\s*">=([0-9]+\.[0-9]+)"/m.exec(pyproject);
+  assert.ok(floor, 'pyproject.toml must declare requires-python');
+  assert.ok(
+    source.includes(`Python ${floor[1]}+ interpreter`),
+    `index.js spawn-error guidance must name the Python ${floor[1]}+ floor`,
+  );
+});
+
 test('package.json version matches the Python distribution version', () => {
   const pkg = JSON.parse(read('package.json'));
   const pyproject = read('pyproject.toml');

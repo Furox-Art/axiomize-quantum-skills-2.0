@@ -114,7 +114,7 @@ def numerical_refinement_study_v2(model:ModelIR, *, simulate_once:SimulateOnce,t
     if points<2:raise ValueError("points must be at least 2")
     if model.family in {ModelFamily.ODE,ModelFamily.DAE,ModelFamily.PDE}:
         return _legacy(model,simulate_once=simulate_once,t_span=t_span,points=points,parameter_overrides=parameter_overrides,seed=seed,tolerance=tolerance,approve_heavy=approve_heavy)
-    kwargs=dict(simulate_once=simulate_once,t_span=t_span,points=points,parameter_overrides=parameter_overrides,seed=seed,tolerance=tolerance,approve_heavy=approve_heavy)
+    kwargs: dict[str, Any]=dict(simulate_once=simulate_once,t_span=t_span,points=points,parameter_overrides=parameter_overrides,seed=seed,tolerance=tolerance,approve_heavy=approve_heavy)
     if model.family in _STOCHASTIC:return _replay_study(model,**kwargs)
     if model.family in _TRAJECTORY:return _resolution_study(model,**kwargs)
     # algebraic, optimization and causal have no time-grid truncation in their native executors;

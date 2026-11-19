@@ -409,7 +409,7 @@ def _simulate_sde(model: ModelIR, *, t_span: tuple[float, float], points: int,
     names, drift = _compile_ode(model, pvals)
     by_name = {v.name: v for v in model.variables}
     y = np.zeros((len(names), max(2, int(points))), dtype=float)
-    y[:, 0] = [float(by_name[n].initial) if by_name[n].initial is not None else np.nan for n in names]
+    y[:, 0] = [float(init) if (init := by_name[n].initial) is not None else np.nan for n in names]
     if not np.all(np.isfinite(y[:, 0])):
         raise ValueError("all stochastic state variables need finite initial values")
     t = np.linspace(float(t_span[0]), float(t_span[1]), y.shape[1])
@@ -424,7 +424,7 @@ def _simulate_sde(model: ModelIR, *, t_span: tuple[float, float], points: int,
     for i, step in enumerate(dt, start=1):
         dW = rng.normal(size=len(names)) * math.sqrt(step)
         y[:, i] = y[:, i - 1] + drift(t[i - 1], y[:, i - 1]) * step + sigma * dW
-    result = {
+    result: dict[str, Any] = {
         "status": "PASS", "family": model.family.value, "time": t.tolist(),
         "states": {name: y[j].tolist() for j, name in enumerate(names)},
         "parameters": pvals,
@@ -454,7 +454,7 @@ def _solve_algebraic(model: ModelIR, *, parameter_overrides: dict[str, float] | 
     roots = sp.nsolve(equations, [symbols[v.name] for v in unknowns], guesses)
     values = np.asarray(roots, dtype=float).reshape(-1)
     state = {v.name: float(values[i]) for i, v in enumerate(unknowns)}
-    result = {
+    result: dict[str, Any] = {
         "status": "PASS", "family": model.family.value, "states": state,
         "parameters": pvals, "solver": {"backend": "sympy", "method": "nsolve"},
     }
@@ -820,7 +820,7 @@ def nondimensionalization_plan(model: ModelIR) -> dict[str, Any]:
             )
         scales[variable.name] = max([v for v in candidates if v > 0] or [1.0])
     pscales = {
-        p.name: abs(float(p.value)) if p.value not in (None, 0) else 1.0
+        p.name: abs(float(value)) if (value := p.value) is not None and value != 0 else 1.0
         for p in model.parameters
     }
     ratio_values = list(scales.values()) + list(pscales.values())

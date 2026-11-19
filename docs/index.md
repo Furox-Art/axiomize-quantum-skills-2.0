@@ -53,7 +53,7 @@ A sample of the LaTeX report the engine converts a finished analysis into:
 pip install axiomize-quantum-skills-2.0
 ```
 
-Python 3.10+. Then:
+Python 3.11+. Then:
 
 ```bash
 axiomize tools        # which scientific backends are really installed
@@ -62,7 +62,7 @@ axiomize validate --N 1000000
 ```
 
 Verified at version 1.2.0, commit `9c2990c`, CPython 3.12.10. That is a historical
-record; the current package line is 1.2.5:
+record; the current package line is 1.2.7:
 
 ```json
 {"status": "PASS", "passed": 12, "total": 12, ...}

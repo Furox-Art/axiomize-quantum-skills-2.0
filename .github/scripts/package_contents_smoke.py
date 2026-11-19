@@ -55,6 +55,10 @@ REQUIRED_WHEEL_PREFIXES = (
     "axiomize/templates/",
     "axiomize/quantum-reasoning/SKILL.md",
     "axiomize/data/benchmark_ideas.json",
+    # PEP 561 marker: src/axiomize/py.typed is tracked and hatchling ships it.
+    # The pyproject comment used to claim the wheel ships no marker; that was
+    # false (corrected in 1.2.7) and this assertion keeps it corrected.
+    "axiomize/py.typed",
 )
 
 #: Never ship these in a distribution, whatever the source tree contains.
@@ -74,6 +78,7 @@ REQUIRED_SDIST_PATHS = (
     "LICENSE",
     "src/axiomize/__init__.py",
     "src/axiomize/cli.py",
+    "src/axiomize/py.typed",
     "skills/axiomize/SKILL.md",
     "skills/axiomize/tools/validate.py",
     "skills/quantum-reasoning/SKILL.md",

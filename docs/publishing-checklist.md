@@ -14,7 +14,7 @@ community lists.
 | Import package | `axiomize` |
 | Skill folders | `skills/axiomize/`, `skills/quantum-reasoning/` |
 | License | MIT |
-| Current release | 1.2.5 |
+| Current release | 1.2.7 |
 
 **Do not link `Furox-Art/axiomize`.** That is a separate, related repository with its own
 release line. This package is the distribution `axiomize-quantum-skills-2.0`, and every
@@ -46,7 +46,7 @@ axiomize benchmark    # -> {"status": "PASS", "passed": 12, "total": 12}
 ```
 
 Verified at 1.2.0, commit `9c2990c`, CPython 3.12.10. That is a historical record; the
-current package line is 1.2.5. Quote that commit if you quote the `12/12` result.
+current package line is 1.2.7. Quote that commit if you quote the `12/12` result.
 
 ## Supply chain
 
@@ -245,7 +245,7 @@ These would be untrue, so leave them out:
 | "N independent agents produced these reports" | The stored reports are maintainer-authored |
 | "supported by Claude Code / Cursor / OpenCode" | Only MCP protocol conformance was tested here |
 | a stars, forks, or downloads figure | Do not hardcode; link the package page instead |
-| "npm package ready to use" | npm 1.2.5 is published and attested, but it is only a launcher shim for the Python CLI. Say "PyPI 1.2.5 is the install; npm 1.2.5 is a Node launcher for it" |
+| "npm package ready to use" | npm 1.2.7 is published and attested, but it is only a launcher shim for the Python CLI. Say "PyPI 1.2.7 is the install; npm 1.2.7 is a Node launcher for it" |
 
 ## Keeping this honest
 

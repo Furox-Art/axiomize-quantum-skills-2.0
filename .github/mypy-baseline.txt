@@ -15,9 +15,16 @@
 # pyproject.toml), with types-PyYAML installed. Re-measure with:
 #   python .github/scripts/mypy_ratchet.py
 
-# Shadowed re-imports in general_engine.py, platform-specific `resource`
-# attributes in sandbox.py, and numpy/Any narrowing in the shipped engine.
-src/axiomize 41
+# Remaining: platform-specific `resource` attributes in sandbox.py (Windows
+# only; Linux measures fewer), the dual-mode `evaluate` import in
+# validate_submission.py, numpy/Any narrowing in bayesian/engine_v2.py and the
+# advanced engine, and the facade re-exports in general_engine.py. The cheap
+# annotation/narrowing findings were fixed in 1.2.7 (41 -> 24, worst-case
+# platform count); see tests/test_type_baseline_fixes.py for the regression pins.
+src/axiomize 24
 
-# Unpacking a heterogeneous tuple at validate.py:116.
+# Unpacking a heterogeneous tuple at validate.py:116. Not reproducible with
+# numpy 2.5.x stubs (measured 0 on Windows and Linux in the 1.2.7 audit); the
+# recorded 2 is kept as headroom because the finding is stub-version-dependent
+# and no code fix was made.
 skills/axiomize/tools 2

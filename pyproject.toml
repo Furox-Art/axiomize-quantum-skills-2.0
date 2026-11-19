@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "axiomize-quantum-skills-2.0"
-version = "1.2.6"
+version = "1.2.7"
 description = "Axiomize 2.0: scientific modeling engine plus quantum-inspired multi-branch reasoning and Model IR selection"
 readme = "README.md"
 license = "MIT"
@@ -167,6 +167,11 @@ module = [
     "sympy.*", "scipy.*", "numpy.*", "networkx.*", "statsmodels.*",
     "matplotlib.*", "z3.*", "control.*", "cvxpy.*", "casadi.*", "pymc", "fenics", "dolfin.*",
     "dolfinx.*", "ufl", "ufl.*", "petsc4py", "petsc4py.*", "mpi4py", "mpi4py.*",
+    # Optional backends that the typecheck environment does not install: jax
+    # ([full] extra), arviz (pymc diagnostics), cds.diffeq (scs adapter). Their
+    # import sites are guarded at runtime and reported UNAVAILABLE by
+    # `axiomize tools`; mypy must not fail on the absent stubs either.
+    "jax", "jax.*", "arviz", "cds.diffeq",
 ]
 ignore_missing_imports = true
 
@@ -176,11 +181,16 @@ follow_imports = "skip"
 ignore_missing_imports = true
 ignore_errors = true
 
-# The wheel ships no `py.typed` marker, because src/axiomize is not annotated
-# for public consumption. Without this override every consumer of the installed
-# package (and this repository's own CI scripts, which import it) reports
-# `import-untyped` for otherwise valid imports. Adding the marker is a typing
-# change for the library and belongs with the code that would satisfy it.
+# src/axiomize ships a `py.typed` marker (src/axiomize/py.typed), and hatchling
+# includes it in the wheel because it lives inside the declared package
+# directory. The previous comment here claimed the opposite ("the wheel ships
+# no py.typed marker"); that contradicted the tracked file and the build, and
+# is corrected in 1.2.7. The marker's presence is pinned by
+# .github/scripts/package_contents_smoke.py against the built wheel.
+# This override is still needed for the case where axiomize is not installed
+# at all (consumer checkouts, CI scripts that import it): without it mypy
+# reports import-not-found for otherwise valid imports. It does not hide
+# errors inside the package -- those are pinned by .github/mypy-baseline.txt.
 [[tool.mypy.overrides]]
 module = ["axiomize", "axiomize.*"]
 ignore_missing_imports = true

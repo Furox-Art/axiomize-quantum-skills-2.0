@@ -5,7 +5,7 @@ the same core services, so validation behaviour never depends on which agent cal
 
 Everything on this page was verified against `axiomize-quantum-skills-2.0` **1.2.0** at
 commit `9c2990c`, CPython 3.12.10 (Windows), with the default install (no `pymc`, no
-`jax`). That verification is a historical record; the current package line is 1.2.5.
+`jax`). That verification is a historical record; the current package line is 1.2.7.
 
 ## Capability discovery
 
@@ -114,7 +114,7 @@ It resolves the console script first and falls back to `python -m axiomize.cli`,
 propagates the child's exit code (a bad subcommand exits 2, `--help` exits 0). Set
 `AXIOMIZE_PYTHON` to pin the interpreter or `AXIOMIZE_CLI` to pin the entry point.
 
-Registry state: 1.2.5 is the current package line on npm and PyPI. The 1.2.4 tarball,
+Registry state: 1.2.7 is the current package line on npm and PyPI. The 1.2.4 tarball,
 measured from `registry.npmjs.org`, holds six files and about 66.7 kB unpacked (about
 25 kB compressed), and it was published over OIDC trusted publishing with two Sigstore
 attestations — an npm publish attestation plus a
@@ -126,7 +126,7 @@ and the digest inside both attestations.
 
 npm also still holds the superseded `2.0.0`, whose `index.js` is the old syntactically
 invalid one. It is no longer the `latest` dist-tag, so an unpinned
-`npm install axiomize-quantum-skills-2.0` gets `1.2.5`. `npm view axiomize-quantum-skills-2.0 dist-tags`
+`npm install axiomize-quantum-skills-2.0` gets `1.2.7`. `npm view axiomize-quantum-skills-2.0 dist-tags`
 tells you which one you have.
 
 ## Via REST (v1)

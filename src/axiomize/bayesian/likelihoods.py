@@ -37,7 +37,9 @@ def resolve_family(family: Any) -> str:
 
 
 def _validate_shape(observed: np.ndarray, mean: np.ndarray) -> bool:
-    return mean.shape == observed.shape and np.all(np.isfinite(mean))
+    # bool(...) keeps the return a builtin bool: np.all yields numpy.bool_, which
+    # is not the declared return type (mypy return-value finding, fixed in 1.2.7).
+    return bool(mean.shape == observed.shape and np.all(np.isfinite(mean)))
 
 
 def log_likelihood(

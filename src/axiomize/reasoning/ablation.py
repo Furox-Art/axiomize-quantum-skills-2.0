@@ -28,6 +28,7 @@ import argparse
 import json
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Callable
 
 import numpy as np
 
@@ -242,7 +243,10 @@ def run_ablation(seed: int = 20260927, trials: int = 400) -> dict:
     """Run the full ablation grid and return nested result statistics."""
     rng = np.random.default_rng(seed)
     results: dict = {"seed": seed, "trials_per_cell": trials, "max_rounds": _MAX_ROUNDS, "cells": {}}
-    policies = {
+    # Annotated dispatch table: the three runners have different optional
+    # parameters, so without the annotation mypy joins them to `object` and
+    # rejects the call below (operator finding, fixed in 1.2.7).
+    policies: dict[str, Callable[[np.random.Generator, _Signals], Outcome]] = {
         "argmax_commit": _run_argmax_commit,
         "beam_top2": _run_beam_top2,
         "branch_controller": _run_branch_controller,
